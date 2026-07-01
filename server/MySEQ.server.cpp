@@ -918,8 +918,8 @@ void HandleCommand(HWND hDlg, WPARAM wParam) {
 		netServer.listIPAddresses();
 		break;
 
-	case IDC_BUTTON4:  // Show dialog for smart offset finder
-		DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_EQOFFSETSFINDER), h_MySEQServer, OffsetDialog);
+	case IDC_BUTTON4:  // Launch offset diff finder
+		LaunchOffsetDiffFinder(h_MySEQServer);
 		break;
 
 	default:
