@@ -9,10 +9,12 @@ namespace myseq
         [STAThread]
         private static void Main()
         {
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(true);
             try
             {
+                ModernTheme.ApplyApplicationDefaults();
                 Application.Run(new MainForm());
             }
             catch (Exception e)

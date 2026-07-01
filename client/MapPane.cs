@@ -18,7 +18,7 @@ namespace myseq
         public NumericUpDown filterzneg;
         public NumericUpDown filterzpos;
 
-        private readonly System.ComponentModel.Container components;
+        private readonly System.ComponentModel.Container components = null;
         # endregion Designer components
 
         public MapPane()

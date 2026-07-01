@@ -64,6 +64,22 @@ namespace myseq
 
         public List<GroundItem> GetItemsReadonly() => itemcollection;
 
+        public List<Spawninfo> GetMobSnapshot()
+        {
+            lock (mobsHashTable.SyncRoot)
+            {
+                return mobsHashTable.Values.Cast<Spawninfo>().ToList();
+            }
+        }
+
+        public List<GroundItem> GetItemSnapshot()
+        {
+            lock (itemcollection)
+            {
+                return itemcollection.ToList();
+            }
+        }
+
         public bool SelectTimer(float x, float y, float delta)
         {
             Spawntimer st = FindTimer(x, y, delta);
@@ -98,9 +114,11 @@ namespace myseq
             {
                 if (Settings.Default.AutoSelectSpawnList)
                 {
+                    gi.Listitem.ListView?.SelectedItems.Clear();
                     gi.Listitem.EnsureVisible();
 
                     gi.Listitem.Selected = true;
+                    gi.Listitem.Focused = true;
                 }
 
                 SetGroundID(gi);
@@ -128,7 +146,7 @@ namespace myseq
 
             if (sp != null)
             {
-                if (Settings.Default.AutoSelectSpawnList)
+                if (Settings.Default.AutoSelectSpawnList && sp.listitem != null)
                 {
                     sp.listitem.EnsureVisible();
 
@@ -149,7 +167,7 @@ namespace myseq
 
         public Spawninfo FindMob(float x, float y, float delta, bool excludePet = false, bool excludePlayer = false, bool excludeCorpse = false)
         {
-            foreach (Spawninfo sp in mobsHashTable.Values)
+            foreach (Spawninfo sp in GetMobSnapshot())
             {
                 if (ShouldExcludeMob(sp, excludePet, excludePlayer, excludeCorpse))
                 {
@@ -196,7 +214,7 @@ namespace myseq
 
         private Spawninfo FindMobTimer(string spawnLoc)
         {
-            foreach (Spawninfo sp in mobsHashTable.Values)
+            foreach (Spawninfo sp in GetMobSnapshot())
             {
                 if ((sp.SpawnLoc == spawnLoc) && (sp.Type == 1))
                 {
@@ -234,7 +252,7 @@ namespace myseq
 
         public GroundItem FindGroundItem(float x, float y, float delta)
         {
-            foreach (GroundItem gi in itemcollection)
+            foreach (GroundItem gi in GetItemSnapshot())
             {
                 if (gi.Filtered)
                 {
@@ -249,6 +267,18 @@ namespace myseq
         }
 
         public Spawninfo GetSelectedMob() => (Spawninfo)mobsHashTable[SelectedID];
+
+        public bool TryGetMobBySpawnId(int spawnId, out Spawninfo spawn)
+        {
+            lock (mobsHashTable.SyncRoot)
+            {
+                spawn = mobsHashTable.ContainsKey(spawnId)
+                    ? mobsHashTable[spawnId] as Spawninfo
+                    : null;
+            }
+
+            return spawn != null;
+        }
 
         public void InitLookups()
         {
@@ -270,7 +300,7 @@ namespace myseq
 
             ProcessGroundItems(itemcollection, deletedGroundItems);
 
-            foreach (Spawninfo sp in mobsHashTable.Values)
+            foreach (Spawninfo sp in GetMobSnapshot())
             {
                 if (sp.delFromList)
                 {
@@ -296,6 +326,7 @@ namespace myseq
                 GroundItemList.listView.BeginUpdate();
                 RemoveGroundItems(GroundItemList, deletedGroundItems);
                 GroundItemList.listView.EndUpdate();
+                GroundItemList.RefreshList();
             }
 
             if (updateSpawnList)
@@ -303,12 +334,13 @@ namespace myseq
                 SpawnList.listView.BeginUpdate();
                 RemoveDeadEntries(SpawnList, deletedSpawns, delListItems);
                 SpawnList.listView.EndUpdate();
+                SpawnList.RefreshList();
             }
         }
 
         private void ProcessGroundItems(List<GroundItem> collection, List<GroundItem> deletedItems)
         {
-            foreach (var item in collection)
+            foreach (var item in GetItemSnapshot())
             {
                 if (item.ShouldBeDeleted)
                 {
@@ -327,7 +359,10 @@ namespace myseq
             {
                 listViewPanel.listView.Items.Remove(item.Listitem);
                 item.Listitem = null;
-                itemcollection.Remove(item);
+                lock (itemcollection)
+                {
+                    itemcollection.Remove(item);
+                }
             }
         }
 
@@ -338,12 +373,16 @@ namespace myseq
                 SpawnList.listView.Items.Remove(sp.listitem);
                 sp.listitem = null;
 
-                mobsHashTable.Remove(sp.SpawnID); // Assuming mobsHashTable uses SpawnID as the key
+                lock (mobsHashTable.SyncRoot)
+                {
+                    mobsHashTable.Remove(sp.SpawnID); // Assuming mobsHashTable uses SpawnID as the key
+                }
             }
 
             foreach (var sp in delListItems)
             {
                 SpawnList.listView.Items.Remove(sp.listitem);
+                sp.listitem = null;
             }
         }
 
@@ -351,7 +390,7 @@ namespace myseq
         {
             try
             {
-                var existingItem = itemcollection
+                var existingItem = GetItemSnapshot()
                    .FirstOrDefault(gi => gi.Name == si.Name && gi.ItemLocation.X == si.X && gi.ItemLocation.Y == si.Y && gi.ItemLocation.Z == si.Z);
 
                 if (existingItem != null)
@@ -378,7 +417,10 @@ namespace myseq
                         }
                     };
                     newItem.Listitem = listItem;
-                    itemcollection.Add(newItem);
+                    lock (itemcollection)
+                    {
+                        itemcollection.Add(newItem);
+                    }
                     // Add it to the ground item list
                     NewGroundItems.Add(listItem);
                 }
@@ -410,11 +452,11 @@ namespace myseq
 
                     DefaultSpawnLoc();
 
-                    foreach (Spawninfo sp in mobsHashTable.Values)
+                    foreach (Spawninfo sp in GetMobSnapshot())
                     {
                         if (sp.SpawnID == EQSelectedID)
                         {
-                            if (Settings.Default.AutoSelectSpawnList)
+                            if (Settings.Default.AutoSelectSpawnList && sp.listitem != null)
                             {
                                 sp.listitem.EnsureVisible();
 
@@ -459,6 +501,7 @@ namespace myseq
                     Spawninfo mob = (Spawninfo)mobsHashTable[si.SpawnID];
 
                     mob.ShouldBeDeleted = false;
+                    mob.MyPlayer = si.Type == 0 || mob.MyPlayer;
 
                     if (update_hidden)
                     {
@@ -509,6 +552,8 @@ namespace myseq
 
                     mob.refresh++;
 
+                    bool positionChanged = HasPositionChanged(si, mob);
+
                     // Set variables we dont want to trigger list update
                     UpdateMobPosition(si, mob);
 
@@ -519,18 +564,22 @@ namespace myseq
                     if (mob.SpeedRun != si.SpeedRun)
                     {
                         mob.SpeedRun = si.SpeedRun;
-                        mob.listitem.SubItems[10].Text = si.SpeedRun.ToString();
+                        SetSubItemText(mob, 10, si.SpeedRun.ToString());
                     }
 
-                    if ((mob.X != si.X) || (mob.Y != si.Y) || (mob.Z != si.Z))
+                    if (positionChanged)
                     {
                         // this should be the selected id
-                        PopulateListview(si, mob);
+                        PopulateListview(mob, mob);
                     }
 
-                    if (listReAdd)
+                    if (listReAdd && mob.listitem != null)
                     {
                         NewSpawns.Add(mob.listitem);
+                    }
+                    else if (!mob.hidden && mob.listitem == null)
+                    {
+                        AddSpawnListItem(mob);
                     }
                 } // end of if found
 
@@ -549,7 +598,7 @@ namespace myseq
             if (mob.Level != si.Level)
             {
                 mob.Level = si.Level;
-                mob.listitem.SubItems[1].Text = mob.Level.ToString();
+                SetSubItemText(mob, 1, mob.Level.ToString());
                 MobLevelSetColor(mob);
             }
         }
@@ -575,7 +624,7 @@ namespace myseq
                 mob.OwnerID = si.OwnerID;
                 MobHasOwner(mob);
                 mob.Hide = si.Hide;
-                mob.listitem.SubItems[9].Text = si.Hide.GetHideStatus();
+                SetSubItemText(mob, 9, si.Hide.GetHideStatus());
             }
         }
 
@@ -584,7 +633,7 @@ namespace myseq
             if (mob.Race != si.Race)
             {
                 mob.Race = si.Race;
-                mob.listitem.SubItems[5].Text = GetRace(si.Race);
+                SetSubItemText(mob, 5, GetRace(si.Race));
             }
         }
 
@@ -593,7 +642,7 @@ namespace myseq
             if (mob.Offhand != si.Offhand)
             {
                 mob.Offhand = si.Offhand;
-                mob.listitem.SubItems[4].Text = si.Offhand > 0 ? ItemNumToString(si.Offhand) : "";
+                SetSubItemText(mob, 4, si.Offhand > 0 ? ItemNumToString(si.Offhand) : "");
             }
         }
 
@@ -602,7 +651,7 @@ namespace myseq
             if (mob.Primary != si.Primary)
             {
                 mob.Primary = si.Primary;
-                mob.listitem.SubItems[3].Text = si.Primary > 0 ? ItemNumToString(si.Primary) : "";
+                SetSubItemText(mob, 3, si.Primary > 0 ? ItemNumToString(si.Primary) : "");
             }
         }
 
@@ -611,27 +660,36 @@ namespace myseq
             if (mob.Class != si.Class)
             {
                 mob.Class = si.Class;
-                mob.listitem.SubItems[2].Text = GetClass(si.Class);
+                SetSubItemText(mob, 2, GetClass(si.Class));
             }
+        }
+
+        private static void SetSubItemText(Spawninfo mob, int index, string value)
+        {
+            if (mob?.listitem != null && mob.listitem.SubItems.Count > index)
+            {
+                mob.listitem.SubItems[index].Text = value;
+            }
+        }
+
+        private static bool HasPositionChanged(Spawninfo si, Spawninfo mob)
+        {
+            return mob.X != si.X || mob.Y != si.Y || mob.Z != si.Z;
         }
 
         private void UpdateMobPosition(Spawninfo si, Spawninfo mob)
         {
-            if (SelectedID != mob.SpawnID)
+            if (mob.X != si.X)
             {
-                if (mob.X != si.X)
-                {
-                    mob.X = si.X;
-                    mob.Y = si.Y;
-                }
-                else if (mob.Y != si.Y)
-                {
-                    mob.Y = si.Y;
-                }
-
-                // update these for all but selected mob, so they do not refresh for all mobs
-                mob.Z = si.Z;
+                mob.X = si.X;
+                mob.Y = si.Y;
             }
+            else if (mob.Y != si.Y)
+            {
+                mob.Y = si.Y;
+            }
+
+            mob.Z = si.Z;
         }
 
         private void SpawnNotFound(Spawninfo si)
@@ -643,10 +701,7 @@ namespace myseq
 
                 si.MyPlayer = true;
 
-                if (!Settings.Default.ShowPlayers)
-                {
-                    si.hidden = true;
-                }
+                si.hidden = SpawnVisibility.ShouldHide(si);
             }
             else if (si.Type == 2 || si.Type == 3)
             {
@@ -660,7 +715,10 @@ namespace myseq
             }
             MobsTimers.Spawn(si);
             IsSpawnInFilterLists(si);
-            mobsHashTable.Add(si.SpawnID, si);
+            lock (mobsHashTable.SyncRoot)
+            {
+                mobsHashTable.Add(si.SpawnID, si);
+            }
         }
 
         private static void Tainted_Egg(Spawninfo si)
@@ -691,20 +749,23 @@ namespace myseq
                     }
 
                     // Set the owner's name in the UI
-                    mob.listitem.SubItems[6].Text = owner.Name.FixMobName();
-                    mob.listitem.SubItems[11].Text = mob.SpawnID.ToString();
+                    SetSubItemText(mob, 6, owner.Name.FixMobName());
+                    SetSubItemText(mob, 11, mob.SpawnID.ToString());
                     return;
                 }
             }
             // If no valid owner was found, display the OwnerID as a fallback
-            mob.listitem.SubItems[6].Text = mob.OwnerID.ToString();
-            mob.listitem.SubItems[11].Text = mob.SpawnID.ToString();
+            SetSubItemText(mob, 6, mob.OwnerID.ToString());
+            SetSubItemText(mob, 11, mob.SpawnID.ToString());
         }
 
         private void SetMobAsPet(Spawninfo mob)
         {
             mob.isPet = true;
-            mob.listitem.ForeColor = Color.Gray;
+            if (mob.listitem != null)
+            {
+                mob.listitem.ForeColor = Color.Gray;
+            }
         }
 
         private void MobLevelSetColor(Spawninfo mob)
@@ -712,11 +773,17 @@ namespace myseq
             // update forecolor
             if (mob.Type == 2 || mob.Type == 3 || mob.isLDONObject)
             {
-                mob.listitem.ForeColor = Color.Gray;
+                if (mob.listitem != null)
+                {
+                    mob.listitem.ForeColor = Color.Gray;
+                }
             }
             else if (mob.isEventController)
             {
-                mob.listitem.ForeColor = Color.DarkOrchid;
+                if (mob.listitem != null)
+                {
+                    mob.listitem.ForeColor = Color.DarkOrchid;
+                }
             }
             else
             {
@@ -818,20 +885,20 @@ namespace myseq
         private void PopulateListview(Spawninfo si, Spawninfo mob)
         {
             mob.X = si.X;
-            mob.listitem.SubItems[13].Text = si.X.ToString();
+            SetSubItemText(mob, 13, si.X.ToString());
 
             mob.Y = si.Y;
-            mob.listitem.SubItems[14].Text = si.Y.ToString();
+            SetSubItemText(mob, 14, si.Y.ToString());
 
             mob.Z = si.Z;
-            mob.listitem.SubItems[15].Text = si.Z.ToString();
+            SetSubItemText(mob, 15, si.Z.ToString());
 
-            mob.listitem.SubItems[16].Text = si.SpawnDistance(si, GamerInfo).ToString("#.00");
+            SetSubItemText(mob, 16, si.SpawnDistance(si, GamerInfo).ToString("#.00"));
         }
 
         private void UpdateMobTypes(Spawninfo mob)
         {
-            mob.listitem.SubItems[8].Text = mob.Type.GetSpawnType();
+            SetSubItemText(mob, 8, mob.Type.GetSpawnType());
 
             if (mob.Type == 2 || mob.Type == 3)
             {
@@ -852,6 +919,11 @@ namespace myseq
 
         private void SetListColors(Spawninfo mob)
         {
+            if (mob.listitem == null)
+            {
+                return;
+            }
+
             mob.listitem.ForeColor = SpawnColors.ConColors[mob.Level].Color;
 
             if (mob.listitem.ForeColor == Color.Maroon)
@@ -868,35 +940,13 @@ namespace myseq
 
         private static void UpdateHidden(Spawninfo si, Spawninfo mob)
         {
-            if (mob.isCorpse)
-            {
-                if (mob.IsPlayer)
-                {
-                    // My Corpse or Other Players' Corpses
-                    si.hidden = mob.IsMyCorpse
-                                ? !Settings.Default.ShowMyCorpse
-                                : !Settings.Default.ShowPCCorpses;
-                }
-                else
-                {
-                    // Non-player Corpses
-                    si.hidden = !Settings.Default.ShowCorpses;
-                }
-            }
-            else if (mob.IsPlayer)
-            {
-                // Player Spawns
-                si.hidden = !Settings.Default.ShowPlayers;
-            }
-            else
-            {
-                // Non-corpse, Non-player spawn (e.g., NPC)
-                si.hidden = !Settings.Default.ShowNPCs // Hide all NPCs
-                            || (si.isEventController && !Settings.Default.ShowInvis) // Invis Men
-                            || (mob.isMount && !Settings.Default.ShowMounts) // Mounts
-                            || (mob.isPet && !Settings.Default.ShowPets) // Pets
-                            || (mob.isFamiliar && !Settings.Default.ShowFamiliars); // Familiars
-            }
+            si.isCorpse = mob.isCorpse || si.Type == 2 || si.Type == 3;
+            si.MyPlayer = mob.IsPlayer || si.Type == 0;
+            si.MyCorpse = mob.IsMyCorpse;
+            si.isMount = mob.isMount;
+            si.isPet = mob.isPet;
+            si.isFamiliar = mob.isFamiliar;
+            si.hidden = SpawnVisibility.ShouldHide(si);
 
             if (si.hidden && !mob.hidden)
             {
@@ -933,8 +983,22 @@ namespace myseq
             PlayAudioMatch(si, mobnameWithInfo);
             if (!si.hidden)
             {
-                NewSpawns.Add(AddDetailsToList(si, mobnameWithInfo));
+                AddSpawnListItem(si, mobnameWithInfo);
             }
+        }
+
+        private void AddSpawnListItem(Spawninfo si, string mobnameWithInfo = null)
+        {
+            if (string.IsNullOrEmpty(mobnameWithInfo))
+            {
+                mobnameWithInfo = si.isMerc ? si.Name.FixMobNameMatch() : si.Name.FixMobName();
+                if (mobnameWithInfo.Length == 0)
+                {
+                    mobnameWithInfo = si.Name;
+                }
+            }
+
+            NewSpawns.Add(AddDetailsToList(si, mobnameWithInfo));
         }
 
         private void SetWieldedNames(Spawninfo si)
@@ -1026,6 +1090,12 @@ namespace myseq
 
         private void NameChngOrDead(Spawninfo si, Spawninfo mob)
         {
+            if (mob.listitem == null)
+            {
+                mob.Name = si.Name;
+                return;
+            }
+
             var newname = si.Name.FixMobName();
             var oldname = mob.Name.FixMobName();
 
@@ -1066,7 +1136,7 @@ namespace myseq
         {
             if (mobsHashTable != null)
             {
-                foreach (Spawninfo si in mobsHashTable.Values)
+                foreach (Spawninfo si in GetMobSnapshot())
                 {
                     if (si.listitem != null)
                     {
@@ -1091,7 +1161,7 @@ namespace myseq
                 sw.WriteLine("Name\t\tLevel\tClass\t\tRace\tLastname\t\tType\tInvis\tSpawnID\tX\tY\tZ");
 
                 // Iterate over mobs and write their details to the file
-                foreach (Spawninfo spawn in mobsHashTable.Values)
+                foreach (Spawninfo spawn in GetMobSnapshot())
                 {
                     var line = $"{spawn.Name}\t\t{spawn.Level}\t\t{GetClass(spawn.Class)}\t{GetRace(spawn.Race)}\t{spawn.Lastname}\t{spawn.Type.GetSpawnType()}\t{spawn.Hide.GetHideStatus()}\t{spawn.SpawnID}\t{spawn.Y}\t{spawn.X}\t{spawn.Z}";
                     sw.WriteLine(line);
@@ -1162,10 +1232,7 @@ namespace myseq
             if (NewSpawns.Count == 0) return;
             try
             {
-                if (Zoning)
-                {
-                    SpawnList.listView.BeginUpdate();
-                }
+                SpawnList.listView.BeginUpdate();
 
                 var items = new List<ListViewItem>(NewSpawns.Count);
                 foreach (var spawn in NewSpawns)
@@ -1182,20 +1249,20 @@ namespace myseq
             catch (Exception ex) { LogLib.WriteLine("Error in ProcessSpawnList(): ", ex); }
             finally
             {
-                // Always end the update if Zoning was active
-                if (Zoning)
-                {
-                    SpawnList.listView.EndUpdate();
-                }
+                SpawnList.listView.EndUpdate();
+                SpawnList.RefreshList();
             }
         }
 
         public void ProcessGroundItemList(ListViewPanel GroundItemList)
         {
+            bool updating = false;
             try
             {
                 if (NewGroundItems.Count > 0)
                 {
+                    GroundItemList.listView.BeginUpdate();
+                    updating = true;
                     ListViewItem[] items = new ListViewItem[NewGroundItems.Count];
 
                     var d = 0;
@@ -1211,6 +1278,14 @@ namespace myseq
                 }
             }
             catch (Exception ex) { LogLib.WriteLine("Error in ProcessGroundItemList(): ", ex); }
+            finally
+            {
+                if (updating)
+                {
+                    GroundItemList.listView.EndUpdate();
+                    GroundItemList.RefreshList();
+                }
+            }
         }
 
         #region ProcessGamer
@@ -1222,8 +1297,9 @@ namespace myseq
         {
             try
             {
+                int previousLevel = GamerInfo.Level;
                 UpdateGamerInfo(si, f1);
-                AdjustConLevel(si);
+                AdjustConLevel(previousLevel, si.Level);
                 UpdateConColorsIfNeeded();
             }
             catch (Exception ex)
@@ -1246,18 +1322,25 @@ namespace myseq
             GamerInfo.Heading = si.Heading;
             GamerInfo.Hide = si.Hide;
             GamerInfo.SpeedRun = si.SpeedRun;
+            GamerInfo.OwnerID = si.OwnerID;
+            GamerInfo.Type = si.Type;
+            GamerInfo.MyPlayer = true;
+            GamerInfo.Class = si.Class;
+            GamerInfo.Level = si.Level;
+            GamerInfo.Race = si.Race;
+            GamerInfo.Primary = si.Primary;
+            GamerInfo.Offhand = si.Offhand;
         }
 
-        private void AdjustConLevel(Spawninfo si)
+        private void AdjustConLevel(int previousLevel, int currentLevel)
         {
-            if (GamerInfo.Level != si.Level && GConBaseName.Length > 1)
+            if (previousLevel != currentLevel && GConBaseName.Length > 1 && Settings.Default.LevelOverride != -1)
             {
                 gconLevel = Settings.Default.LevelOverride;
-                int levelDifference = si.Level - GamerInfo.Level;
+                int levelDifference = currentLevel - previousLevel;
                 gconLevel = MathClamp(gconLevel + levelDifference, 1, 125);
 
                 Settings.Default.LevelOverride = gconLevel;
-                GamerInfo.Level = si.Level;
                 spawnColor.FillConColors(GamerInfo);
                 UpdateMobListColors();
             }
@@ -1272,9 +1355,11 @@ namespace myseq
 
         private void UpdateConColorsIfNeeded()
         {
-            if (gLastconLevel != gconLevel)
+            int effectiveConLevel = Settings.Default.LevelOverride != -1 ? Settings.Default.LevelOverride : GamerInfo.Level;
+
+            if (gLastconLevel != effectiveConLevel)
             {
-                gLastconLevel = gconLevel;
+                gLastconLevel = effectiveConLevel;
                 spawnColor.FillConColors(GamerInfo);
                 UpdateMobListColors();
             }
@@ -1284,8 +1369,15 @@ namespace myseq
 
         public void Clear()
         {
-            mobsHashTable.Clear();
-            itemcollection.Clear();
+            lock (mobsHashTable.SyncRoot)
+            {
+                mobsHashTable.Clear();
+            }
+
+            lock (itemcollection)
+            {
+                itemcollection.Clear();
+            }
         }
 
         public void ModKeyControl(MapCon mapCon, float x, float y)

@@ -61,6 +61,12 @@ namespace myseq
 
         private readonly int ListType;
         private int lastSortedColumn = -1;
+        private bool refreshingList;
+        private int highlightedSpawnId = 99999;
+        private int lastClickedSpawnId = 99999;
+        private string lastClickedSpawnSummary = "";
+        private bool applyingSelection;
+        private const int WM_SETREDRAW = 0x000B;
 
         // if 0, it's the SpawnList, 1 SpawnTimerList, 2 GroundItemList
 
@@ -70,6 +76,7 @@ namespace myseq
 
             InitializeComponent();
             Font = new Font(Settings.Default.ListFont.FontFamily, Settings.Default.ListFont.Size, Settings.Default.ListFont.Style);
+            ModernTheme.ApplyListPanel(this);
 
             if (listType == 0) // Add Columns to Spawnlist window
             {
@@ -118,9 +125,7 @@ namespace myseq
 
             DoubleBuffered = true;
 
-            SetStyle(ControlStyles.UserPaint, true);
-            SetStyle(ControlStyles.AllPaintingInWmPaint, true);
-            SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
+            SetStyle(ControlStyles.UserPaint, false);
 
             // Use reflection to set the ListView control to being double buffered.  This stops the blinking.
             System.Reflection.PropertyInfo listProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -250,6 +255,13 @@ namespace myseq
             listView.SelectedIndexChanged += new EventHandler(ListView_SelectedIndexChanged);
             listView.VisibleChanged += new EventHandler(ListView_VisibleChanged);
             listView.MouseEnter += new EventHandler(ListView_MouseEnter);
+            listView.MouseDown += new MouseEventHandler(ListView_MouseDown);
+            listView.MouseUp += new MouseEventHandler(ListView_MouseUp);
+            listView.MouseClick += new MouseEventHandler(ListView_MouseClick);
+            listView.DrawColumnHeader += new DrawListViewColumnHeaderEventHandler(ListView_DrawColumnHeader);
+            listView.DrawItem += new DrawListViewItemEventHandler(ListView_DrawItem);
+            listView.DrawSubItem += new DrawListViewSubItemEventHandler(ListView_DrawSubItem);
+            listView.OwnerDraw = false;
             //
             // mnuContext
             //
@@ -540,6 +552,174 @@ namespace myseq
             }
         }
 
+        private void ListView_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            using (var backBrush = new SolidBrush(ModernTheme.ListHeader))
+            using (var borderPen = new Pen(ModernTheme.Border))
+            {
+                e.Graphics.FillRectangle(backBrush, e.Bounds);
+                e.Graphics.DrawLine(borderPen, e.Bounds.Right - 1, e.Bounds.Top + 4, e.Bounds.Right - 1, e.Bounds.Bottom - 4);
+            }
+
+            var textBounds = new Rectangle(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height);
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.Header.Text,
+                ModernTheme.UiFont,
+                textBounds,
+                Color.White,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        }
+
+        private void ListView_DrawItem(object sender, DrawListViewItemEventArgs e)
+        {
+            if (listView.View != View.Details)
+            {
+                e.DrawDefault = true;
+                return;
+            }
+
+            e.DrawDefault = false;
+        }
+
+        private void ListView_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
+        {
+            bool selected = e.Item.Selected || IsAppSelectedItem(e.Item);
+            bool focused = listView.Focused || listView.ContainsFocus;
+            Color backColor = selected
+                ? focused ? ModernTheme.Accent : ModernTheme.ListSelected
+                : e.ItemIndex % 2 == 0 ? ModernTheme.ListEvenRow : ModernTheme.ListOddRow;
+
+            using (var backBrush = new SolidBrush(backColor))
+            {
+                e.Graphics.FillRectangle(backBrush, e.Bounds);
+            }
+
+            Color foreColor = selected && focused ? Color.White : selected ? ModernTheme.Text : e.Item.ForeColor;
+            if (foreColor == Color.Empty)
+            {
+                foreColor = ModernTheme.Text;
+            }
+
+            var textBounds = new Rectangle(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height);
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.SubItem.Text,
+                listView.Font,
+                textBounds,
+                foreColor,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+
+            if (selected && e.ColumnIndex == listView.Columns.Count - 1)
+            {
+                ControlPaint.DrawFocusRectangle(e.Graphics, e.Bounds);
+            }
+        }
+
+        private bool IsAppSelectedItem(ListViewItem item)
+        {
+            if (ListType != 0 || eq == null || item?.SubItems.Count <= 11)
+            {
+                return false;
+            }
+
+            return IsSpawnIdItem(item, eq.SelectedID) || IsSpawnIdItem(item, highlightedSpawnId);
+        }
+
+        private static bool IsSpawnIdItem(ListViewItem item, int spawnId)
+        {
+            return item?.SubItems.Count > 11
+                && int.TryParse(item.SubItems[11].Text, out int itemSpawnId)
+                && itemSpawnId == spawnId;
+        }
+
+        public bool TryGetSelectedSpawnId(out int spawnId)
+        {
+            spawnId = 99999;
+
+            if (ListType != 0)
+            {
+                return false;
+            }
+
+            if (listView.SelectedItems.Count > 0
+                && listView.SelectedItems[0].SubItems.Count > 11
+                && int.TryParse(listView.SelectedItems[0].SubItems[11].Text, out spawnId))
+            {
+                return true;
+            }
+
+            spawnId = highlightedSpawnId;
+
+            if (lastClickedSpawnId != 99999)
+            {
+                spawnId = lastClickedSpawnId;
+                return true;
+            }
+
+            return spawnId != 99999;
+        }
+
+        public bool TryGetSelectedSpawnSummary(out string summary)
+        {
+            summary = "";
+
+            if (ListType != 0)
+            {
+                return false;
+            }
+
+            ListViewItem item = listView.SelectedItems.Count > 0
+                ? listView.SelectedItems[0]
+                : FindHighlightedSpawnItem();
+
+            if (TryBuildSpawnSummary(item, out summary))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(lastClickedSpawnSummary))
+            {
+                summary = lastClickedSpawnSummary;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryBuildSpawnSummary(ListViewItem item, out string summary)
+        {
+            summary = "";
+
+            if (item == null || item.SubItems.Count <= 16)
+            {
+                return false;
+            }
+
+            summary = $"{item.SubItems[8].Text}: {item.Text}\n"
+                + $"L{item.SubItems[1].Text} {item.SubItems[2].Text}  Dist {item.SubItems[16].Text}\n"
+                + $"{item.SubItems[5].Text}  ID {item.SubItems[11].Text}";
+            return true;
+        }
+
+        private ListViewItem FindHighlightedSpawnItem()
+        {
+            if (highlightedSpawnId == 99999)
+            {
+                return null;
+            }
+
+            foreach (ListViewItem item in listView.Items)
+            {
+                if (IsSpawnIdItem(item, highlightedSpawnId))
+                {
+                    return item;
+                }
+            }
+
+            return null;
+        }
+
         private void NoSelection()
         {
             // This is where we update the menu view if no selected item
@@ -581,7 +761,7 @@ namespace myseq
 
         private void ListType0(ListView.SelectedIndexCollection sel)
         {
-            Mobname = listView.Items[sel[0]].SubItems[17].Text.FilterMobName();
+            Mobname = listView.Items[sel[0]].SubItems[0].Text.FilterMobName();
             Mobname = Mobname.Replace("_", " ");
             Mobname = Mobname.Trim();
             //smoblevel = "";
@@ -632,6 +812,7 @@ namespace myseq
             txtSpawnList.Width = Width - txtSpawnList.Left;
             listView.Width = Width;
             listView.Height = Height - listView.Top;
+            RefreshList();
         }
 
         private void SearchboxReset_Click(object sender, EventArgs e)
@@ -662,6 +843,127 @@ namespace myseq
             catch (Exception ex) { LogLib.WriteLine("Error in ListViewPanel.txtSpawnList_TextChanged: ", ex); }
         }
 
+        public void RefreshList()
+        {
+            if (listView.IsDisposed || refreshingList)
+            {
+                return;
+            }
+
+            if (listView.InvokeRequired)
+            {
+                listView.BeginInvoke(new Action(RefreshList));
+                return;
+            }
+
+            refreshingList = true;
+            try
+            {
+                if (listView.IsHandleCreated)
+                {
+                    SafeNativeMethods.SendMessage(listView.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+                }
+
+                listView.PerformLayout();
+
+                if (listView.IsHandleCreated)
+                {
+                    SafeNativeMethods.SendMessage(listView.Handle, WM_SETREDRAW, new IntPtr(1), IntPtr.Zero);
+                }
+
+                listView.Invalidate(true);
+                listView.Update();
+                listView.Refresh();
+            }
+            finally
+            {
+                if (listView.IsHandleCreated)
+                {
+                    SafeNativeMethods.SendMessage(listView.Handle, WM_SETREDRAW, new IntPtr(1), IntPtr.Zero);
+                }
+
+                refreshingList = false;
+            }
+        }
+
+        public void HighlightSelectedSpawn()
+        {
+            if (ListType != 0 || eq == null || listView.IsDisposed)
+            {
+                return;
+            }
+
+            if (listView.InvokeRequired)
+            {
+                listView.BeginInvoke(new Action(HighlightSelectedSpawn));
+                return;
+            }
+
+            highlightedSpawnId = eq.SelectedID;
+            ListViewItem selectedItem = null;
+
+            foreach (ListViewItem item in listView.Items)
+            {
+                bool shouldSelect = IsSpawnIdItem(item, highlightedSpawnId);
+                item.Selected = shouldSelect;
+                item.Focused = shouldSelect;
+                if (shouldSelect)
+                {
+                    selectedItem = item;
+                }
+            }
+
+            selectedItem?.EnsureVisible();
+            listView.HideSelection = false;
+            listView.Invalidate(true);
+            listView.Update();
+        }
+
+        public void HighlightSelectedGroundItem()
+        {
+            if (ListType != 2 || eq == null || listView.IsDisposed)
+            {
+                return;
+            }
+
+            if (listView.InvokeRequired)
+            {
+                listView.BeginInvoke(new Action(HighlightSelectedGroundItem));
+                return;
+            }
+
+            ListViewItem selectedItem = null;
+
+            foreach (ListViewItem item in listView.Items)
+            {
+                bool shouldSelect = IsGroundItemSelected(item);
+                item.Selected = shouldSelect;
+                item.Focused = shouldSelect;
+                if (shouldSelect)
+                {
+                    selectedItem = item;
+                }
+            }
+
+            selectedItem?.EnsureVisible();
+            listView.HideSelection = false;
+            listView.Invalidate(true);
+            listView.Update();
+        }
+
+        private bool IsGroundItemSelected(ListViewItem item)
+        {
+            return item?.SubItems.Count > 4
+                && Math.Abs(ParseListFloat(item.SubItems[3].Text) - eq.SpawnX) < 0.75f
+                && Math.Abs(ParseListFloat(item.SubItems[4].Text) - eq.SpawnY) < 0.75f
+                && eq.SelectedID == 99999;
+        }
+
+        private static float ParseListFloat(string value)
+        {
+            return float.TryParse(value, out float parsed) ? parsed : float.NaN;
+        }
+
         private void ListView_MouseEnter(object sender, EventArgs e)
         {
             if (!f1.toolStripScale.Focused && !f1.toolStripZPos.Focused && !f1.toolStripZNeg.Focused && !f1.toolStripLookupBox1.Focused)
@@ -687,38 +989,156 @@ namespace myseq
             // Ensure listView is not null.
             if (listView != null)
             {
-                listView.ListViewItemSorter = new ListViewComparer(e.Column, sortOrder);
-                listView.Sort();  // Trigger the sorting immediately.
+                listView.BeginUpdate();
+                try
+                {
+                    listView.ListViewItemSorter = new ListViewComparer(e.Column, sortOrder);
+                    listView.Sort();  // Trigger the sorting immediately.
+                }
+                finally
+                {
+                    listView.EndUpdate();
+                    RefreshList();
+                }
             }
         }
 
         private void ListView_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (applyingSelection)
+            {
+                return;
+            }
+
             ListView.SelectedIndexCollection sel = listView.SelectedIndices;
             listView.HideSelection = false;
 
             if (sel.Count > 0)
             {
-                if (listView.Visible)
+                ApplySelectedListItem(listView.Items[sel[0]], focusList: true, force: true);
+            }
+        }
+
+        private void ListView_MouseDown(object sender, MouseEventArgs e)
+        {
+            ListViewItem item = listView.HitTest(e.Location).Item ?? FindItemByY(e.Y);
+            if (item == null)
+            {
+                return;
+            }
+
+            item.Selected = true;
+            item.Focused = true;
+            listView.FocusedItem = item;
+            ApplySelectedListItem(item, focusList: true, force: true);
+        }
+
+        private void ListView_MouseUp(object sender, MouseEventArgs e) => ApplyMouseSelectionAfterNativeClick(e);
+
+        private void ListView_MouseClick(object sender, MouseEventArgs e) => ApplyMouseSelectionAfterNativeClick(e);
+
+        private void ApplyMouseSelectionAfterNativeClick(MouseEventArgs e)
+        {
+            ListViewItem item = listView.HitTest(e.Location).Item ?? FindItemByY(e.Y);
+            if (item == null)
+            {
+                return;
+            }
+
+            BeginInvoke(new Action(() =>
+            {
+                if (item.ListView == null)
+                {
+                    return;
+                }
+
+                listView.SelectedItems.Clear();
+                item.Selected = true;
+                item.Focused = true;
+                listView.FocusedItem = item;
+                ApplySelectedListItem(item, focusList: true, force: true);
+            }));
+        }
+
+        private ListViewItem FindItemByY(int y)
+        {
+            foreach (ListViewItem item in listView.Items)
+            {
+                if (y >= item.Bounds.Top && y <= item.Bounds.Bottom)
+                {
+                    return item;
+                }
+            }
+
+            return null;
+        }
+
+        private void ApplySelectedListItem(ListViewItem item, bool focusList, bool force = false)
+        {
+            if (item == null || (applyingSelection && !force))
+            {
+                return;
+            }
+
+            applyingSelection = true;
+            try
+            {
+                listView.HideSelection = false;
+
+                if (focusList && listView.Visible)
                 {
                     listView.Focus();
                 }
 
                 if (ListType == 0)
+                {
+                    if (item.SubItems.Count > 11 && int.TryParse(item.SubItems[11].Text, out int spawnId))
+                    {
+                        eq?.SetSelectedID(spawnId);
+                        highlightedSpawnId = spawnId;
+                        item.Focused = true;
 
-                {
-                    eq?.SetSelectedID(int.Parse(listView.Items[sel[0]].SubItems[11].Text));
+                        if (TryBuildSpawnSummary(item, out string summary))
+                        {
+                            lastClickedSpawnId = spawnId;
+                            lastClickedSpawnSummary = summary;
+                            f1?.mapCon?.UpdateSelectedSpawnInfoFromList(spawnId, summary);
+                        }
+                        else
+                        {
+                            f1?.mapCon?.UpdateSelectedSpawnInfo();
+                        }
+                    }
                 }
-                else if (ListType == 1)
+                else
                 {
-                    eq?.SetSelectedTimer(float.Parse(listView.Items[sel[0]].SubItems[4].Text), float.Parse(listView.Items[sel[0]].SubItems[5].Text));
-                }
-                else if (ListType == 2)
-                {
-                    eq?.SetSelectedGroundItem(float.Parse(listView.Items[sel[0]].SubItems[3].Text), float.Parse(listView.Items[sel[0]].SubItems[4].Text));
+                    int itemIndex = item.Index;
+                    if (itemIndex < 0)
+                    {
+                        return;
+                    }
+
+                    if (ListType == 1)
+                    {
+                        eq?.SetSelectedTimer(float.Parse(listView.Items[itemIndex].SubItems[4].Text), float.Parse(listView.Items[itemIndex].SubItems[5].Text));
+                    }
+                    else if (ListType == 2)
+                    {
+                        float x = float.Parse(listView.Items[itemIndex].SubItems[3].Text);
+                        float y = float.Parse(listView.Items[itemIndex].SubItems[4].Text);
+                        eq?.SetSelectedGroundItem(x, y);
+                        HighlightSelectedGroundItem();
+                        f1?.mapCon?.UpdateSelectionCardGroundItem(x, y);
+                    }
                 }
 
                 f1.MapConInvalidate();
+                listView.Invalidate();
+                listView.Update();
+            }
+            finally
+            {
+                applyingSelection = false;
             }
         }
 
@@ -833,6 +1253,7 @@ namespace myseq
             {
                 listView.EnsureVisible(listView.SelectedItems[0].Index);
             }
+            RefreshList();
         }
 
         private void MnuStickyTimer_Click(object sender, EventArgs e)

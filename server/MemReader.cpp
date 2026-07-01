@@ -22,12 +22,41 @@
 #include "MemReader.h"
 
 
-  // Runtime debug macros
+// Runtime debug macros
 #define RTDEBUG(...) if (debug) cout << __VA_ARGS__ << endl
 
 #define TO_LOWER(str) (transform(str.begin(), str.end(), str.begin(), (int(*)(int))tolower))
 
 typedef uint64_t QWORD;
+
+namespace
+{
+	void WriteDiagnosticLog(const std::string& message)
+	{
+		char modulePath[MAX_PATH + 1] = { 0 };
+		GetModuleFileNameA(NULL, modulePath, MAX_PATH);
+		std::string logPath(modulePath);
+		const auto slash = logPath.find_last_of("\\/");
+		if (slash != std::string::npos)
+			logPath = logPath.substr(0, slash + 1);
+		else
+			logPath.clear();
+		logPath += "server-diagnostics.log";
+
+		SYSTEMTIME now;
+		GetLocalTime(&now);
+
+		std::ofstream log(logPath, std::ios::app);
+		log << std::setfill('0')
+			<< "[" << std::setw(4) << now.wYear << "-"
+			<< std::setw(2) << now.wMonth << "-"
+			<< std::setw(2) << now.wDay << " "
+			<< std::setw(2) << now.wHour << ":"
+			<< std::setw(2) << now.wMinute << ":"
+			<< std::setw(2) << now.wSecond << "] "
+			<< message << std::endl;
+	}
+}
 
 MemReader::MemReader() :
 	currentEQProcessID(0),
@@ -175,6 +204,12 @@ bool MemReader::openProcess(string filename, bool first, bool debug)
 
 					currentEQProcessBaseAddress = GetModuleBaseAddress(pe32.th32ProcessID, pe32.szExeFile);
 
+					std::ostringstream log;
+					log << "MemReader: attached to " << pe32.szExeFile
+						<< " pid=" << std::dec << currentEQProcessID
+						<< " base=0x" << std::hex << currentEQProcessBaseAddress;
+					WriteDiagnosticLog(log.str());
+
 					originalFilename = procExe;
 
 					rtn = true;
@@ -185,6 +220,12 @@ bool MemReader::openProcess(string filename, bool first, bool debug)
 				{
 					// Access denied. Continue search
 					RTDEBUG("-->Access denied.");
+
+					std::ostringstream log;
+					log << "MemReader: access denied opening " << pe32.szExeFile
+						<< " pid=" << std::dec << pe32.th32ProcessID
+						<< " error=" << GetLastError();
+					WriteDiagnosticLog(log.str());
 
 					currentEQProcessID = 0;
 
@@ -202,7 +243,10 @@ bool MemReader::openProcess(string filename, bool first, bool debug)
 	if (rtn)
 		cout << "MemReader: Found process ID " << dec << currentEQProcessID << " Base Address: 0x" << hex << currentEQProcessBaseAddress << endl;
 	else if (first)
+	{
 		cout << "MemReader: Failed to locate process '" << filename << "'" << endl;
+		WriteDiagnosticLog("MemReader: failed to locate process '" + filename + "'");
+	}
 
 	return rtn;
 }

@@ -23,6 +23,35 @@
 
 #include "NetworkServer.h"
 
+namespace
+{
+	void WriteDiagnosticLog(const std::string& message)
+	{
+		char modulePath[MAX_PATH + 1] = { 0 };
+		GetModuleFileNameA(NULL, modulePath, MAX_PATH);
+		std::string logPath(modulePath);
+		const auto slash = logPath.find_last_of("\\/");
+		if (slash != std::string::npos)
+			logPath = logPath.substr(0, slash + 1);
+		else
+			logPath.clear();
+		logPath += "server-diagnostics.log";
+
+		SYSTEMTIME now;
+		GetLocalTime(&now);
+
+		std::ofstream log(logPath, std::ios::app);
+		log << std::setfill('0')
+			<< "[" << std::setw(4) << now.wYear << "-"
+			<< std::setw(2) << now.wMonth << "-"
+			<< std::setw(2) << now.wDay << " "
+			<< std::setw(2) << now.wHour << ":"
+			<< std::setw(2) << now.wMinute << ":"
+			<< std::setw(2) << now.wSecond << "] "
+			<< message << std::endl;
+	}
+}
+
 NetworkServer::NetworkServer()
 {
 	sockAddrSize = sizeof(sockAddr);
@@ -284,6 +313,17 @@ void NetworkServer::init(IniReaderInterface* ir_intf)
 	setOffset(OT_ground, ir_intf->readIntegerEntry("Memory Offsets", "ItemsAddr"));
 	setOffset(OT_world, ir_intf->readIntegerEntry("Memory Offsets", "WorldAddr"));
 
+	std::ostringstream log;
+	log << "NetworkServer: offsets"
+		<< " zone=0x" << std::hex << offsets[OT_zonename]
+		<< " spawn=0x" << offsets[OT_spawnlist]
+		<< " self=0x" << offsets[OT_self]
+		<< " target=0x" << offsets[OT_target]
+		<< " ground=0x" << offsets[OT_ground]
+		<< " world=0x" << offsets[OT_world]
+		<< " largestSpawnRead=0x" << spawnParser.largestOffset;
+	WriteDiagnosticLog(log.str());
+
 	if (h_MySEQServer) {
 		// Array of control IDs corresponding to each offset type
 		int controlIds[OT_max] = {
@@ -478,9 +518,27 @@ void NetworkServer::handleGetProcRequest()
 
 void NetworkServer::handleZoneRequest(MemReaderInterface* mr_intf)
 {
+	static int zoneDiagnostics = 0;
 	std::string newZoneName;
+	QWORD zoneAddress = 0;
 	if (offsets[OT_zonename])
-		newZoneName = mr_intf->extractString2(offsets[OT_zonename] - 0x140000000 + mr_intf->getCurrentBaseAddress());
+	{
+		zoneAddress = offsets[OT_zonename] - 0x140000000 + mr_intf->getCurrentBaseAddress();
+		newZoneName = mr_intf->extractString2(zoneAddress);
+	}
+
+	if (zoneDiagnostics < 10)
+	{
+		std::ostringstream log;
+		log << "NetworkServer: zone read"
+			<< " pid=" << std::dec << mr_intf->getCurrentPID()
+			<< " base=0x" << std::hex << mr_intf->getCurrentBaseAddress()
+			<< " offset=0x" << offsets[OT_zonename]
+			<< " address=0x" << zoneAddress
+			<< " value='" << newZoneName << "'";
+		WriteDiagnosticLog(log.str());
+		zoneDiagnostics++;
+	}
 
 	// Only send zonename response if zone changed
 	if (newZoneName != zoneName)
@@ -612,6 +670,7 @@ void NetworkServer::handleTargetRequest(MemReaderInterface* mr_intf)
 
 void NetworkServer::handleSpawnsRequest(MemReaderInterface* mr_intf)
 {
+	static int spawnDiagnostics = 0;
 	QWORD pTemp = 0;
 	QWORD pTemp2 = 0;
 	int maxLoop;
@@ -620,6 +679,21 @@ void NetworkServer::handleSpawnsRequest(MemReaderInterface* mr_intf)
 	if (offsets[OT_spawnlist])
 		pTemp = pTemp2 = mr_intf->extractRAWPointer(offsets[OT_spawnlist]);
 	cout << "ptemp " << pTemp << " pTemp2 " << pTemp2 << endl;
+
+	if (spawnDiagnostics < 10)
+	{
+		bool canReadSpawnHead = pTemp && mr_intf->extractToBuffer(pTemp, spawnParser.rawBuffer, spawnParser.largestOffset);
+		std::ostringstream log;
+		log << "NetworkServer: spawn read"
+			<< " pid=" << std::dec << mr_intf->getCurrentPID()
+			<< " base=0x" << std::hex << mr_intf->getCurrentBaseAddress()
+			<< " offset=0x" << offsets[OT_spawnlist]
+			<< " pointer=0x" << pTemp
+			<< " canRead=" << std::dec << canReadSpawnHead
+			<< " largest=0x" << std::hex << spawnParser.largestOffset;
+		WriteDiagnosticLog(log.str());
+		spawnDiagnostics++;
+	}
 
 	/* This pointer may point to a spawn in the	middle of the list due to shroud or hover.
 	Back up to the top of the spawn list just to be sure we	grab the whole thing. */
@@ -719,10 +793,26 @@ void NetworkServer::updateGUI(QWORD& pTemp, MemReaderInterface* mr_intf, int& ma
 
 void NetworkServer::handleSelfRequest(MemReaderInterface* mr_intf)
 {
+	static int selfDiagnostics = 0;
 	QWORD pTemp = 0;
 
 	if (offsets[OT_self])
 		pTemp = mr_intf->extractRAWPointer(offsets[OT_self]);
+
+	if (selfDiagnostics < 10)
+	{
+		bool canReadSelf = pTemp && mr_intf->extractToBuffer(pTemp, spawnParser.rawBuffer, spawnParser.largestOffset);
+		std::ostringstream log;
+		log << "NetworkServer: self read"
+			<< " pid=" << std::dec << mr_intf->getCurrentPID()
+			<< " base=0x" << std::hex << mr_intf->getCurrentBaseAddress()
+			<< " offset=0x" << offsets[OT_self]
+			<< " pointer=0x" << pTemp
+			<< " canRead=" << std::dec << canReadSelf
+			<< " largest=0x" << std::hex << spawnParser.largestOffset;
+		WriteDiagnosticLog(log.str());
+		selfDiagnostics++;
+	}
 
 	if (quickInfo)
 		cout << "MySEQServer: pSelf is 0x" << hex << pTemp << endl;

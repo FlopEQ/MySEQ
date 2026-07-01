@@ -18,14 +18,36 @@ namespace myseq
         public delegate void SelectPointHandler(Spawninfo playerinfo, double selectedX, double selectedY);
 
         private Timer tooltipTimer;
+        private Timer clockTimer;
 
         public event SelectPointHandler SelectPoint; // Fires when the user clicks the map (without a mob)
 
         protected void OnSelectPoint(Spawninfo playerinfo, double selectedX, double selectedY) => SelectPoint?.Invoke(playerinfo, selectedX, selectedY);
 
-        private readonly System.ComponentModel.Container components;
+        private readonly System.ComponentModel.Container components = null;
 
         private Label MobInfoLabel;
+        private Panel selectionInfoCard;
+        private Label selectionClockLabel;
+        private Label selectionBodyLabel;
+        private Panel mapIconLegend;
+        private FlowLayoutPanel mapControlRail;
+        private FlowLayoutPanel railNpcRow;
+        private FlowLayoutPanel railPcRow;
+        private Button btnRailNpc;
+        private Button btnRailPlayers;
+        private Button btnRailNpcCorpses;
+        private Button btnRailPcCorpses;
+        private Button btnRailGrid;
+        private Button btnRailLabels;
+        private Button btnRailFollow;
+        private Button btnRailTarget;
+        private Button btnRailLegend;
+        private Button btnRailReset;
+        private ToolTip railToolTip;
+        private int lastInfoSpawnId = 99999;
+        private string lastInfoText = "";
+        private int lastPolledListSpawnId = 99999;
 
         private Font drawFont = Settings.Default.MapLabel;
         private Font drawFont1 = new Font(Settings.Default.MapLabel.Name, Settings.Default.MapLabel.Size * 0.9f, Settings.Default.MapLabel.Style);
@@ -102,6 +124,7 @@ namespace myseq
 
         private readonly SolidBrush textBrush = new SolidBrush(Color.LightGray);
         private readonly SolidBrush WhiteBrush = new SolidBrush(Color.White);
+        private readonly SolidBrush MarkerShadowBrush = new SolidBrush(Color.FromArgb(110, 0, 0, 0));
         private readonly Pen WhitePen = new Pen(new SolidBrush(Color.White));
         private readonly Pen GreenPen = new Pen(new SolidBrush(Color.Green));
         private readonly Pen RedPen = new Pen(new SolidBrush(Color.Red));
@@ -109,6 +132,7 @@ namespace myseq
         private readonly Pen YellowPen = new Pen(new SolidBrush(Color.Yellow));
         private readonly Pen PurplePen = new Pen(new SolidBrush(Color.Purple));
         private readonly Pen PinkPen = new Pen(new SolidBrush(Color.Fuchsia));
+        private readonly Pen SelectionPen = new Pen(ModernTheme.AccentWarm, 2.4f);
         private readonly Pen PCBorder = new Pen(new SolidBrush(Settings.Default.PCBorderColor));
 
         private MainForm f1;          // Caution: this may be null
@@ -168,6 +192,7 @@ namespace myseq
 
                 bkgBuffer.Graphics.SmoothingMode = SmoothingMode.None;
 
+                PositionMapOverlays();
                 Refresh();
             }
         }
@@ -192,9 +217,11 @@ namespace myseq
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && components != null)
+            if (disposing)
             {
-                components.Dispose();
+                tooltipTimer?.Dispose();
+                clockTimer?.Dispose();
+                components?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -202,6 +229,10 @@ namespace myseq
 
         public void Tick()
         {
+            UpdateInfoClock();
+            PollSelectedSpawnList();
+            RefreshSelectedSpawnInfoCard();
+
             // Increment animation and flash counters
             skittle++;
             flash_count++;
@@ -220,6 +251,29 @@ namespace myseq
             {
                 flash_count = 0;  // Reset flash count
                 flash = !flash;   // Toggle the flash boolean
+            }
+        }
+
+        private void PollSelectedSpawnList()
+        {
+            if (f1?.SpawnList == null)
+            {
+                return;
+            }
+
+            if (!f1.SpawnList.TryGetSelectedSpawnId(out int spawnId) || spawnId == 99999 || spawnId == lastPolledListSpawnId)
+            {
+                return;
+            }
+
+            lastPolledListSpawnId = spawnId;
+            if (f1.SpawnList.TryGetSelectedSpawnSummary(out string summary))
+            {
+                UpdateSelectedSpawnInfoFromList(spawnId, summary);
+            }
+            else
+            {
+                UpdateSelectedSpawnInfo();
             }
         }
 
@@ -255,15 +309,59 @@ namespace myseq
             }
         }
 
+        private static string FormatInfoClock() => DateTime.Now.ToString("MMM d, yyyy h:mm tt");
+
+        private void UpdateInfoClock()
+        {
+            if (lblGameClock == null && selectionClockLabel == null)
+            {
+                return;
+            }
+
+            string currentTime = FormatInfoClock();
+            if (lblGameClock != null && !string.Equals(lblGameClock.Text, currentTime, StringComparison.Ordinal))
+            {
+                lblGameClock.Text = currentTime;
+            }
+
+            if (selectionClockLabel != null && !string.Equals(selectionClockLabel.Text, currentTime, StringComparison.Ordinal))
+            {
+                selectionClockLabel.Text = currentTime;
+            }
+        }
+
         #region Component Designer generated code
 
         private void InitializeComponent()
 
         {
             MobInfoLabel = new Label();
+            selectionInfoCard = new Panel();
+            selectionClockLabel = new Label();
+            selectionBodyLabel = new Label();
+            mapIconLegend = new Panel();
             tableLayoutPanel1 = new TableLayoutPanel();
             lblGameClock = new Label();
+            mapControlRail = new FlowLayoutPanel();
+            railNpcRow = new FlowLayoutPanel();
+            railPcRow = new FlowLayoutPanel();
+            btnRailNpc = new Button();
+            btnRailPlayers = new Button();
+            btnRailNpcCorpses = new Button();
+            btnRailPcCorpses = new Button();
+            btnRailGrid = new Button();
+            btnRailLabels = new Button();
+            btnRailFollow = new Button();
+            btnRailTarget = new Button();
+            btnRailLegend = new Button();
+            btnRailReset = new Button();
+            railToolTip = new ToolTip();
             tableLayoutPanel1.SuspendLayout();
+            selectionInfoCard.SuspendLayout();
+            mapIconLegend.SuspendLayout();
+            mapControlRail.SuspendLayout();
+            railNpcRow.SuspendLayout();
+            railPcRow.SuspendLayout();
             SuspendLayout();
             tooltipTimer = new System.Windows.Forms.Timer
             {
@@ -271,6 +369,12 @@ namespace myseq
             };
             tooltipTimer.Tick += TooltipTimer_Tick;
             tooltipTimer.Start();
+            clockTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 1000
+            };
+            clockTimer.Tick += (_, _) => UpdateInfoClock();
+            clockTimer.Start();
 
             //
             // lblMobInfo
@@ -278,13 +382,15 @@ namespace myseq
             MobInfoLabel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom
             | AnchorStyles.Left
             | AnchorStyles.Right;
-            MobInfoLabel.BackColor = Color.White;
-            MobInfoLabel.BorderStyle = BorderStyle.FixedSingle;
+            MobInfoLabel.BackColor = Color.FromArgb(46, 53, 63);
+            MobInfoLabel.BorderStyle = BorderStyle.None;
             MobInfoLabel.Font = Settings.Default.TargetInfoFont;
-            MobInfoLabel.Location = new Point(0, 20);
-            MobInfoLabel.Margin = new Padding(0);
+            MobInfoLabel.ForeColor = Color.FromArgb(232, 238, 244);
+            MobInfoLabel.Location = new Point(0, 24);
+            MobInfoLabel.Margin = new Padding(0, 2, 0, 0);
             MobInfoLabel.Name = "lblMobInfo";
-            MobInfoLabel.Size = new Size(163, 80);
+            MobInfoLabel.Padding = new Padding(8, 6, 8, 6);
+            MobInfoLabel.Size = new Size(220, 92);
             MobInfoLabel.TabIndex = 0;
             MobInfoLabel.Text = "Spawn Information Window";
             //
@@ -292,16 +398,17 @@ namespace myseq
             //
             tableLayoutPanel1.AutoSize = true;
             tableLayoutPanel1.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            tableLayoutPanel1.BackColor = Color.FromArgb(46, 53, 63);
             tableLayoutPanel1.ColumnCount = 1;
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tableLayoutPanel1.Controls.Add(lblGameClock, 0, 0);
             tableLayoutPanel1.Controls.Add(MobInfoLabel, 0, 1);
-            tableLayoutPanel1.Location = new Point(3, 3);
+            tableLayoutPanel1.Location = new Point(10, 10);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 2;
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 80F));
-            tableLayoutPanel1.Size = new Size(163, 100);
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            tableLayoutPanel1.Size = new Size(220, 118);
             tableLayoutPanel1.TabIndex = 2;
             //
             // lblGameClock
@@ -309,27 +416,115 @@ namespace myseq
             lblGameClock.Anchor = AnchorStyles.Top | AnchorStyles.Bottom
             | AnchorStyles.Left
             | AnchorStyles.Right;
-            lblGameClock.BackColor = Color.BlueViolet;
-            lblGameClock.BorderStyle = BorderStyle.FixedSingle;
+            lblGameClock.BackColor = ModernTheme.Accent;
+            lblGameClock.BorderStyle = BorderStyle.None;
             lblGameClock.Font = Settings.Default.TargetInfoFont;/// new Font("Microsoft Sans Serif", 8.25F, FontStyle.Bold);
             lblGameClock.ForeColor = Color.White;
             lblGameClock.Location = new Point(0, 0);
             lblGameClock.Margin = new Padding(0);
             lblGameClock.Name = "lblGameClock";
-            lblGameClock.Size = new Size(163, 20);
+            lblGameClock.Size = new Size(220, 24);
             lblGameClock.TabIndex = 2;
-            lblGameClock.Text = "12:12 AM 1/01/0000";
+            lblGameClock.Text = FormatInfoClock();
             lblGameClock.TextAlign = ContentAlignment.MiddleCenter;
             //
+            // selectionInfoCard
+            //
+            selectionInfoCard.BackColor = Color.FromArgb(46, 53, 63);
+            selectionInfoCard.Controls.Add(selectionClockLabel);
+            selectionInfoCard.Controls.Add(selectionBodyLabel);
+            selectionInfoCard.Location = new Point(10, 10);
+            selectionInfoCard.Name = "selectionInfoCard";
+            selectionInfoCard.Padding = new Padding(0);
+            selectionInfoCard.Size = new Size(260, 116);
+            selectionInfoCard.TabIndex = 6;
+            //
+            // selectionClockLabel
+            //
+            selectionClockLabel.BackColor = ModernTheme.Accent;
+            selectionClockLabel.Font = Settings.Default.TargetInfoFont;
+            selectionClockLabel.ForeColor = Color.White;
+            selectionClockLabel.Location = new Point(0, 0);
+            selectionClockLabel.Name = "selectionClockLabel";
+            selectionClockLabel.Size = new Size(260, 24);
+            selectionClockLabel.TabIndex = 0;
+            selectionClockLabel.Text = FormatInfoClock();
+            selectionClockLabel.TextAlign = ContentAlignment.MiddleCenter;
+            //
+            // selectionBodyLabel
+            //
+            selectionBodyLabel.BackColor = Color.FromArgb(46, 53, 63);
+            selectionBodyLabel.Font = Settings.Default.TargetInfoFont;
+            selectionBodyLabel.ForeColor = Color.FromArgb(232, 238, 244);
+            selectionBodyLabel.Location = new Point(0, 24);
+            selectionBodyLabel.Name = "selectionBodyLabel";
+            selectionBodyLabel.Padding = new Padding(8, 6, 8, 6);
+            selectionBodyLabel.Size = new Size(260, 92);
+            selectionBodyLabel.TabIndex = 1;
+            selectionBodyLabel.Text = "Select a spawn";
+            //
+            // mapIconLegend
+            //
+            mapIconLegend.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            mapIconLegend.BackColor = Color.FromArgb(32, 36, 43);
+            mapIconLegend.Location = new Point(10, 10);
+            mapIconLegend.Name = "mapIconLegend";
+            mapIconLegend.Padding = new Padding(10, 8, 10, 8);
+            mapIconLegend.Size = new Size(210, 174);
+            mapIconLegend.TabIndex = 7;
+            mapIconLegend.Paint += MapIconLegend_Paint;
+            //
+            // mapControlRail
+            //
+            mapControlRail.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            mapControlRail.AutoSize = false;
+            mapControlRail.AutoSizeMode = AutoSizeMode.GrowOnly;
+            mapControlRail.BackColor = Color.FromArgb(32, 36, 43);
+            railNpcRow.Controls.Add(btnRailNpc);
+            railNpcRow.Controls.Add(btnRailNpcCorpses);
+            railPcRow.Controls.Add(btnRailPlayers);
+            railPcRow.Controls.Add(btnRailPcCorpses);
+            mapControlRail.Controls.Add(railNpcRow);
+            mapControlRail.Controls.Add(railPcRow);
+            mapControlRail.Controls.Add(btnRailGrid);
+            mapControlRail.Controls.Add(btnRailLabels);
+            mapControlRail.Controls.Add(btnRailFollow);
+            mapControlRail.Controls.Add(btnRailTarget);
+            mapControlRail.Controls.Add(btnRailLegend);
+            mapControlRail.Controls.Add(btnRailReset);
+            mapControlRail.FlowDirection = FlowDirection.LeftToRight;
+            mapControlRail.Location = new Point(10, 10);
+            mapControlRail.Name = "mapControlRail";
+            mapControlRail.Padding = new Padding(8);
+            mapControlRail.MinimumSize = new Size(400, 0);
+            mapControlRail.Size = new Size(400, 86);
+            mapControlRail.TabIndex = 3;
+            mapControlRail.WrapContents = false;
+            ConfigureRailRow(railNpcRow);
+            ConfigureRailRow(railPcRow);
+            ConfigureRailButton(btnRailNpc, "NPC", "Toggle NPCs", RailNpc_Click);
+            ConfigureRailButton(btnRailPlayers, "PC", "Toggle players", RailPlayers_Click);
+            ConfigureRailButton(btnRailNpcCorpses, "CRP", "Toggle NPC corpses", RailNpcCorpses_Click);
+            ConfigureRailButton(btnRailPcCorpses, "CRP", "Toggle player corpses", RailPcCorpses_Click);
+            ConfigureRailButton(btnRailGrid, "GRID", "Toggle map grid", RailGrid_Click);
+            ConfigureRailButton(btnRailLabels, "TXT", "Toggle zone text labels", RailLabels_Click);
+            ConfigureRailButton(btnRailFollow, "FOL", "Cycle follow mode", RailFollow_Click);
+            ConfigureRailButton(btnRailTarget, "TGT", "Toggle target info", RailTarget_Click);
+            ConfigureRailButton(btnRailLegend, "LEG", "Toggle map legend", RailLegend_Click);
+            ConfigureRailButton(btnRailReset, "RST", "Reset map view", RailReset_Click);
             // MapCon
             //
             AutoScroll = true;
             BackColor = SystemColors.Control;
+            Controls.Add(mapIconLegend);
+            Controls.Add(mapControlRail);
+            Controls.Add(selectionInfoCard);
             Controls.Add(tableLayoutPanel1);
             Location = new Point(3, 3);
             Name = "MapCon";
             Size = new Size(227, 154);
             Paint += new PaintEventHandler(MapCon_Paint);
+            Resize += (_, _) => PositionMapOverlays();
             KeyPress += new KeyPressEventHandler(MapCon_KeyPress);
             MouseDoubleClick += new MouseEventHandler(MapCon_MouseDoubleClick);
             MouseDown += new MouseEventHandler(MapCon_MouseDown);
@@ -337,8 +532,478 @@ namespace myseq
             MouseUp += new MouseEventHandler(MapCon_MouseUp);
             MouseWheel += new MouseEventHandler(MapCon_MouseScroll);
             tableLayoutPanel1.ResumeLayout(false);
+            selectionInfoCard.ResumeLayout(false);
+            mapIconLegend.ResumeLayout(false);
+            railNpcRow.ResumeLayout(false);
+            railPcRow.ResumeLayout(false);
+            mapControlRail.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
+            ModernTheme.ApplyMapSurface(this);
+            tableLayoutPanel1.Visible = false;
+            PositionMapOverlays();
+            ApplyMapOverlayVisibility();
+            ApplyTargetInfoVisibility();
+            mapIconLegend.BringToFront();
+            selectionInfoCard.BringToFront();
+            UpdateRailState();
+        }
+
+        private static void ConfigureRailRow(FlowLayoutPanel row)
+        {
+            row.AutoSize = false;
+            row.BackColor = Color.Transparent;
+            row.FlowDirection = FlowDirection.TopDown;
+            row.Margin = new Padding(0, 0, 8, 0);
+            row.MinimumSize = new Size(42, 70);
+            row.Padding = new Padding(0);
+            row.Size = new Size(42, 70);
+            row.WrapContents = false;
+        }
+
+        private void ConfigureRailButton(Button button, string text, string tooltip, EventHandler handler, int width = 42)
+        {
+            button.Name = $"btnRail{text}";
+            button.Text = text;
+            button.Click += handler;
+            railToolTip.SetToolTip(button, tooltip);
+            ModernTheme.StyleRailButton(button, false);
+            button.Width = width;
+            button.MinimumSize = new Size(width, 34);
+            button.Margin = new Padding(0, 0, 6, 0);
+        }
+
+        private void PositionMapOverlays()
+        {
+            PositionMapRail();
+            PositionMapIconLegend();
+        }
+
+        private void PositionMapIconLegend()
+        {
+            if (mapIconLegend == null)
+            {
+                return;
+            }
+
+            int y = Math.Max(10, Height - mapIconLegend.Height - 12);
+            if (mapControlRail != null && Settings.Default.ShowMapRail && Width < mapIconLegend.Width + mapControlRail.Width + 34)
+            {
+                y = Math.Max(10, Height - mapIconLegend.Height - mapControlRail.Height - 22);
+            }
+
+            mapIconLegend.Location = new Point(10, y);
+        }
+
+        private void PositionMapRail()
+        {
+            if (mapControlRail == null)
+            {
+                return;
+            }
+
+            int width = Math.Min(400, Math.Max(260, Width - 20));
+            mapControlRail.Size = new Size(width, 86);
+            mapControlRail.MinimumSize = new Size(width, 0);
+            int x = Math.Max(10, Width - mapControlRail.Width - 12);
+            int y = Math.Max(10, Height - mapControlRail.Height - 12);
+            mapControlRail.Location = new Point(x, y);
+        }
+
+        private void MapIconLegend_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(mapIconLegend.BackColor);
+
+            using (var titleFont = new Font(ModernTheme.UiFont.FontFamily, 9.0f, FontStyle.Bold))
+            using (var textBrush = new SolidBrush(Color.FromArgb(232, 238, 244)))
+            {
+                g.DrawString("Map Legend", titleFont, textBrush, 10, 8);
+            }
+
+            DrawLegendRow(g, 30, "NPC", DrawLegendNpc);
+            DrawLegendRow(g, 52, "Player", DrawLegendPlayer);
+            DrawLegendRow(g, 74, "NPC corpse", graphics => DrawLegendCorpse(graphics, Color.Cyan));
+            DrawLegendRow(g, 96, "PC corpse", graphics => DrawLegendCorpse(graphics, Color.Yellow));
+            DrawLegendRow(g, 118, "Ground spawn", DrawLegendGroundSpawn);
+            DrawLegendRow(g, 140, "Selected", DrawLegendSelected);
+        }
+
+        private static void DrawLegendRow(Graphics g, int y, string label, Action<Graphics> drawIcon)
+        {
+            GraphicsState state = g.Save();
+            g.TranslateTransform(18, y + 9);
+            drawIcon(g);
+            g.Restore(state);
+
+            using (var textBrush = new SolidBrush(Color.FromArgb(232, 238, 244)))
+            {
+                g.DrawString(label, ModernTheme.UiFont, textBrush, 38, y);
+            }
+        }
+
+        private static void DrawLegendNpc(Graphics g)
+        {
+            using (var shadow = new SolidBrush(Color.FromArgb(90, 0, 0, 0)))
+            using (var fill = new SolidBrush(Color.Cyan))
+            using (var border = new Pen(Color.FromArgb(235, 255, 255, 255), 1.2f))
+            {
+                g.FillEllipse(shadow, -5, -3, 12, 12);
+                g.FillEllipse(fill, -6, -5, 12, 12);
+                g.DrawEllipse(border, -6, -5, 12, 12);
+            }
+        }
+
+        private static void DrawLegendPlayer(Graphics g)
+        {
+            PointF[] diamond =
+            {
+                new PointF(0, -7),
+                new PointF(7, 0),
+                new PointF(0, 7),
+                new PointF(-7, 0)
+            };
+
+            using (var shadow = new SolidBrush(Color.FromArgb(90, 0, 0, 0)))
+            using (var fill = new SolidBrush(Color.Lime))
+            using (var border = new Pen(Settings.Default.PCBorderColor, 1.3f))
+            {
+                g.TranslateTransform(1, 2);
+                g.FillPolygon(shadow, diamond);
+                g.TranslateTransform(-1, -2);
+                g.FillPolygon(fill, diamond);
+                g.DrawPolygon(border, diamond);
+            }
+        }
+
+        private static void DrawLegendCorpse(Graphics g, Color color)
+        {
+            RectangleF skull = new RectangleF(-7, -8, 14, 12);
+            RectangleF jaw = new RectangleF(-4, 0, 8, 6);
+
+            using (var skullBrush = new SolidBrush(Color.FromArgb(238, color)))
+            using (var jawBrush = new SolidBrush(Color.FromArgb(220, color)))
+            using (var outline = new Pen(Color.FromArgb(235, 30, 34, 40), 1.1f))
+            using (var eyeBrush = new SolidBrush(Color.FromArgb(235, 30, 34, 40)))
+            {
+                g.FillEllipse(skullBrush, skull);
+                g.DrawEllipse(outline, skull);
+                g.FillRectangle(jawBrush, jaw);
+                g.DrawRectangle(outline, jaw.X, jaw.Y, jaw.Width, jaw.Height);
+                g.FillEllipse(eyeBrush, -4.3f, -4.3f, 3.2f, 3.2f);
+                g.FillEllipse(eyeBrush, 1.1f, -4.3f, 3.2f, 3.2f);
+                g.FillPolygon(eyeBrush, new[] { new PointF(0, -1), new PointF(-1.4f, 1.8f), new PointF(1.4f, 1.8f) });
+            }
+        }
+
+        private static void DrawLegendGroundSpawn(Graphics g)
+        {
+            PointF[] diamond =
+            {
+                new PointF(0, -7),
+                new PointF(7, 0),
+                new PointF(0, 7),
+                new PointF(-7, 0)
+            };
+
+            using (var fill = new SolidBrush(Color.FromArgb(224, 202, 137, 44)))
+            using (var border = new Pen(Color.FromArgb(245, 255, 236, 178), 1.3f))
+            {
+                g.FillPolygon(fill, diamond);
+                g.DrawPolygon(border, diamond);
+            }
+        }
+
+        private static void DrawLegendSelected(Graphics g)
+        {
+            using (var fill = new SolidBrush(Color.Cyan))
+            using (var border = new Pen(Color.FromArgb(235, 255, 255, 255), 1.2f))
+            using (var selected = new Pen(ModernTheme.AccentWarm, 2.4f))
+            {
+                g.FillEllipse(fill, -5, -5, 10, 10);
+                g.DrawEllipse(border, -5, -5, 10, 10);
+                g.DrawEllipse(selected, -10, -10, 20, 20);
+            }
+        }
+
+        public void UpdateRailState()
+        {
+            ModernTheme.StyleRailButton(btnRailNpc, Settings.Default.ShowNPCs);
+            ModernTheme.StyleRailButton(btnRailPlayers, Settings.Default.ShowPlayers);
+            ModernTheme.StyleRailButton(btnRailNpcCorpses, Settings.Default.ShowCorpses);
+            ModernTheme.StyleRailButton(btnRailPcCorpses, Settings.Default.ShowPCCorpses);
+            SetRailButtonLayout(btnRailNpc, 42, RailButtonPlacement.StackTop);
+            SetRailButtonLayout(btnRailPlayers, 42, RailButtonPlacement.StackTop);
+            SetRailButtonLayout(btnRailNpcCorpses, 42, RailButtonPlacement.StackBottom);
+            SetRailButtonLayout(btnRailPcCorpses, 42, RailButtonPlacement.StackBottom);
+            SetRailRowLayout(railNpcRow);
+            SetRailRowLayout(railPcRow);
+            ModernTheme.StyleRailButton(btnRailGrid, (Settings.Default.DrawOptions & DrawOptions.GridLines) != DrawOptions.None);
+            ModernTheme.StyleRailButton(btnRailLabels, (Settings.Default.DrawOptions & DrawOptions.ZoneText) != DrawOptions.None);
+            ModernTheme.StyleRailButton(btnRailFollow, Settings.Default.FollowOption != FollowOption.None);
+            ModernTheme.StyleRailButton(btnRailTarget, Settings.Default.ShowTargetInfo);
+            ModernTheme.StyleRailButton(btnRailLegend, Settings.Default.ShowMapLegend);
+            ModernTheme.StyleRailButton(btnRailReset, false);
+            SetRailButtonLayout(btnRailGrid, 42, RailButtonPlacement.Row);
+            SetRailButtonLayout(btnRailLabels, 42, RailButtonPlacement.Row);
+            SetRailButtonLayout(btnRailFollow, 42, RailButtonPlacement.Row);
+            SetRailButtonLayout(btnRailTarget, 42, RailButtonPlacement.Row);
+            SetRailButtonLayout(btnRailLegend, 42, RailButtonPlacement.Row);
+            SetRailButtonLayout(btnRailReset, 42, RailButtonPlacement.Row);
+            ApplyMapOverlayVisibility();
+
+        }
+
+        private enum RailButtonPlacement
+        {
+            Row,
+            StackTop,
+            StackBottom
+        }
+
+        private static void SetRailButtonLayout(Button button, int width, RailButtonPlacement placement)
+        {
+            button.Width = width;
+            button.MinimumSize = new Size(width, 34);
+            button.Margin = placement switch
+            {
+                RailButtonPlacement.StackTop => new Padding(0, 0, 0, 2),
+                RailButtonPlacement.StackBottom => Padding.Empty,
+                _ => new Padding(0, 0, 8, 0)
+            };
+        }
+
+        private static void SetRailRowLayout(FlowLayoutPanel row)
+        {
+            row.AutoSize = false;
+            row.FlowDirection = FlowDirection.TopDown;
+            row.MinimumSize = new Size(42, 70);
+            row.Size = new Size(42, 70);
+            row.Margin = new Padding(0, 0, 8, 0);
+        }
+
+        private void RailNpc_Click(object sender, EventArgs e) => f1?.ToggleNPCsFromRail();
+        private void RailPlayers_Click(object sender, EventArgs e) => f1?.TogglePlayersFromRail();
+        private void RailNpcCorpses_Click(object sender, EventArgs e) => f1?.ToggleNPCCorpsesFromRail();
+        private void RailPcCorpses_Click(object sender, EventArgs e) => f1?.TogglePCCorpsesFromRail();
+        private void RailGrid_Click(object sender, EventArgs e) => f1?.ToggleGridFromRail();
+        private void RailLabels_Click(object sender, EventArgs e) => f1?.ToggleZoneTextFromRail();
+        private void RailFollow_Click(object sender, EventArgs e) => f1?.CycleFollowFromRail();
+        private void RailTarget_Click(object sender, EventArgs e) => f1?.ToggleTargetInfoFromRail();
+        private void RailLegend_Click(object sender, EventArgs e) => ToggleMapLegend();
+        private void RailReset_Click(object sender, EventArgs e) => f1?.ResetMapFromRail();
+
+        public void ToggleMapLegend()
+        {
+            Settings.Default.ShowMapLegend = !Settings.Default.ShowMapLegend;
+            ApplyMapOverlayVisibility();
+            UpdateRailState();
+            Invalidate();
+        }
+
+        public void ApplyMapOverlayVisibility()
+        {
+            if (mapIconLegend != null)
+            {
+                mapIconLegend.Visible = Settings.Default.ShowMapLegend;
+            }
+
+            if (mapControlRail != null)
+            {
+                mapControlRail.Visible = Settings.Default.ShowMapRail;
+            }
+        }
+
+        public void ApplyTargetInfoVisibility()
+        {
+            if (tableLayoutPanel1 != null)
+            {
+                tableLayoutPanel1.Visible = false;
+            }
+
+            if (selectionInfoCard == null)
+            {
+                return;
+            }
+
+            selectionInfoCard.Visible = Settings.Default.ShowTargetInfo;
+            if (selectionInfoCard.Visible)
+            {
+                selectionInfoCard.BringToFront();
+            }
+        }
+
+        private void SetSelectionCardText(string text, Color? headerColor = null)
+        {
+            if (selectionInfoCard == null || selectionBodyLabel == null)
+            {
+                return;
+            }
+
+            selectionClockLabel.BackColor = headerColor ?? ModernTheme.Accent;
+            selectionBodyLabel.Text = string.IsNullOrWhiteSpace(text) ? "Select a spawn" : text;
+
+            using (Graphics graphics = selectionBodyLabel.CreateGraphics())
+            {
+                Size proposed = new Size(360, int.MaxValue);
+                Size textSize = TextRenderer.MeasureText(
+                    graphics,
+                    selectionBodyLabel.Text,
+                    selectionBodyLabel.Font,
+                    proposed,
+                    TextFormatFlags.WordBreak);
+
+                int width = Math.Max(260, Math.Min(380, textSize.Width + 28));
+                int bodyHeight = Math.Max(92, textSize.Height + 22);
+                selectionInfoCard.Size = new Size(width, bodyHeight + 24);
+                selectionClockLabel.Size = new Size(width, 24);
+                selectionBodyLabel.Size = new Size(width, bodyHeight);
+            }
+
+            ApplyTargetInfoVisibility();
+        }
+
+        private void SetSelectionCardSpawn(Spawninfo sp)
+        {
+            if (sp == null)
+            {
+                return;
+            }
+
+            string info = SpawnInfoWindow(sp).ToString();
+            Color header = HeaderColorForSpawn(sp);
+            SetSelectionCardText(info, header);
+            CacheSelectedInfo(sp.SpawnID, info);
+        }
+
+        public void UpdateSelectionCardGroundItem(GroundItem gi)
+        {
+            if (gi == null)
+            {
+                return;
+            }
+
+            SetSelectionCardText(BuildGroundItemInfo(gi), ModernTheme.Accent);
+        }
+
+        public void UpdateSelectionCardGroundItem(float x, float y)
+        {
+            GroundItem gi = eq?.GetItemSnapshot()
+                .FirstOrDefault(item => Math.Abs(item.ItemLocation.X - x) < 0.75f && Math.Abs(item.ItemLocation.Y - y) < 0.75f);
+
+            UpdateSelectionCardGroundItem(gi);
+        }
+
+        private static string BuildGroundItemInfo(GroundItem gi)
+        {
+            return $"Ground Item: {gi.Desc}\nActorDef: {gi.Name}\n{gi.ItemLocation}";
+        }
+
+        private Color HeaderColorForSpawn(Spawninfo sp)
+        {
+            InfoSetColor(sp);
+            return lblGameClock.BackColor;
+        }
+
+        public void UpdateSelectedSpawnInfo()
+        {
+            if (eq == null)
+            {
+                SetSelectionCardText("Select a spawn");
+                return;
+            }
+
+            if (eq.SelectedID == 99999)
+            {
+                SetSelectionCardText(SelectedListInfo());
+                return;
+            }
+
+            bool found = eq.TryGetMobBySpawnId(eq.SelectedID, out Spawninfo selected);
+            if (found)
+            {
+                SetSelectionCardSpawn(selected);
+            }
+            else
+            {
+                SetSelectionCardText(SelectedListInfo());
+            }
+        }
+
+        public void UpdateSelectedSpawnInfoFromList(int spawnId, string listSummary)
+        {
+            lastPolledListSpawnId = spawnId;
+            lastInfoSpawnId = 99999;
+            lastInfoText = "";
+
+            if (eq != null)
+            {
+                eq.SetSelectedID(spawnId);
+            }
+
+            SetSelectionCardText(listSummary);
+            CacheSelectedInfo(spawnId, listSummary);
+
+            if (eq != null && eq.TryGetMobBySpawnId(spawnId, out Spawninfo selected))
+            {
+                SetSelectionCardSpawn(selected);
+                return;
+            }
+        }
+
+        private void CacheSelectedInfo(int spawnId, string info)
+        {
+            if (spawnId == 99999 || string.IsNullOrWhiteSpace(info) || info == "No spawn selected")
+            {
+                return;
+            }
+
+            lastInfoSpawnId = spawnId;
+            lastInfoText = info;
+        }
+
+        private string SelectedListInfo()
+        {
+            return TryBuildSelectedListInfo(out string summary)
+                ? summary
+                : MobInfo(null, true, true);
+        }
+
+        private bool TryBuildSelectedListInfo(out string info)
+        {
+            info = "";
+
+            if (f1?.SpawnList?.TryGetSelectedSpawnSummary(out string summary) == true)
+            {
+                MobInfoLabel.BackColor = Color.FromArgb(46, 53, 63);
+                MobInfoLabel.ForeColor = Color.FromArgb(232, 238, 244);
+                lblGameClock.BackColor = ModernTheme.Accent;
+                info = MobshowInfo(new StringBuilder(summary));
+                if (f1.SpawnList.TryGetSelectedSpawnId(out int selectedSpawnId))
+                {
+                    CacheSelectedInfo(selectedSpawnId, info);
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool RestoreSelectedSpawnFromList()
+        {
+            if (eq == null || f1?.SpawnList == null)
+            {
+                return eq != null && eq.SelectedID != 99999;
+            }
+
+            if (f1.SpawnList.TryGetSelectedSpawnId(out int selectedSpawnId) && selectedSpawnId != eq.SelectedID)
+            {
+                eq.SetSelectedID(selectedSpawnId);
+                return true;
+            }
+
+            return eq.SelectedID != 99999;
         }
 
         private void MapCon_KeyPress(object sender, KeyPressEventArgs e) => mapPane.MapCon_KeyPress(sender, e);
@@ -356,9 +1021,9 @@ namespace myseq
 
                 DrawOptions drawOpts = f1.DrawOpts;
 
-                // Clear the map and update the game clock
+                // Clear the map and update the info header clock
                 bkgBuffer.Graphics.Clear(Settings.Default.BackColor);
-                lblGameClock.Text = $"{eq.Gametime:MMM d, yyyy} {eq.Gametime:t}";
+                UpdateInfoClock();
 
                 // Update spawn sizes if settings changed
                 if (SettingsSpawnSize != Settings.Default.SpawnDrawSize)
@@ -402,6 +1067,7 @@ namespace myseq
                     DrawSpawntimers(drawOpts);
                     SmoothMode();
                     DrawCorpses(drawOpts, pZ);
+                    RefreshSelectedSpawnInfoCard();
                 }
                 else
                 {
@@ -420,6 +1086,20 @@ namespace myseq
             catch (Exception ex)
             {
                 LogLib.WriteLine("Error in MapCon_Paint(): ", ex);
+            }
+        }
+
+        private void RefreshSelectedSpawnInfoCard()
+        {
+            if (eq == null || eq.SelectedID == 99999)
+            {
+                return;
+            }
+
+            Spawninfo selected = eq.GetMobSnapshot().FirstOrDefault(sp => sp.SpawnID == eq.SelectedID);
+            if (selected != null)
+            {
+                SetSelectionCardSpawn(selected);
             }
         }
 
@@ -679,9 +1359,14 @@ namespace myseq
                 // try to select mob, if not then do timer
 
                 var delta = 5.0f / Ratio;
-                if (!eq.SelectMob(mousex, mousey, delta) && !eq.SelectTimer(mousex, mousey, delta))
+                if (!SelectMapSpawn(e.Location) && !eq.SelectTimer(mousex, mousey, delta))
                 {
-                    eq.SelectGroundItem(mousex, mousey, delta);
+                    if (eq.SelectGroundItem(mousex, mousey, delta))
+                    {
+                        f1?.GroundItemList.HighlightSelectedGroundItem();
+                        GroundItem gi = eq.FindGroundItem(mousex, mousey, delta);
+                        UpdateSelectionCardGroundItem(gi);
+                    }
                 }
 
                 Invalidate();
@@ -1101,6 +1786,127 @@ namespace myseq
             catch (Exception ex) { LogLib.WriteLine($"Error with FillRectangle({x1}, {y1}, {width}, {height}): ", ex); }
         }
 
+        private void DrawModernCircleMarker(float x, float y, Brush brush, bool selected, bool matched)
+        {
+            float size = Math.Max(SpawnSize + 3, 9);
+            float offset = size / 2f;
+
+            FillEllipse(MarkerShadowBrush, x - offset + 1, y - offset + 2, size, size);
+            FillEllipse(brush, x - offset, y - offset, size, size);
+            DrawEllipse(new Pen(Color.FromArgb(235, 255, 255, 255), 1.2f), x - offset, y - offset, size, size);
+
+            if (selected || matched)
+            {
+                DrawEllipse(new Pen(selected ? ModernTheme.AccentWarm : Color.White, selected ? 2.4f : 1.8f), x - offset - 4, y - offset - 4, size + 8, size + 8);
+            }
+        }
+
+        private void DrawModernPlayerMarker(float x, float y, Brush brush, bool selected, bool matched)
+        {
+            float size = Math.Max(SpawnPlusSize + 3, 11);
+            float offset = size / 2f;
+            PointF[] points =
+            {
+                new PointF(x, y - offset),
+                new PointF(x + offset, y),
+                new PointF(x, y + offset),
+                new PointF(x - offset, y)
+            };
+
+            bkgBuffer.Graphics.FillPolygon(MarkerShadowBrush, OffsetPoints(points, 1, 2));
+            bkgBuffer.Graphics.FillPolygon(brush, points);
+            bkgBuffer.Graphics.DrawPolygon(new Pen(Settings.Default.PCBorderColor, 1.4f), points);
+
+            if (selected || matched)
+            {
+                DrawEllipse(new Pen(selected ? ModernTheme.AccentWarm : Color.White, selected ? 2.4f : 1.8f), x - offset - 4, y - offset - 4, size + 8, size + 8);
+            }
+        }
+
+        private void DrawModernCorpseMarker(PointF point, Color color, bool matched)
+        {
+            float size = Math.Max(SpawnPlusSize + 6, 14);
+            float offset = size / 2f;
+            RectangleF skull = new RectangleF(point.X - offset, point.Y - offset, size, size * 0.82f);
+            RectangleF jaw = new RectangleF(point.X - (size * 0.26f), point.Y + (size * 0.12f), size * 0.52f, size * 0.28f);
+
+            using (var skullBrush = new SolidBrush(Color.FromArgb(238, color)))
+            using (var jawBrush = new SolidBrush(Color.FromArgb(220, color)))
+            using (var outline = new Pen(Color.FromArgb(235, 30, 34, 40), 1.2f))
+            using (var eyeBrush = new SolidBrush(Color.FromArgb(235, 30, 34, 40)))
+            using (var toothPen = new Pen(Color.FromArgb(235, 30, 34, 40), 1f))
+            {
+                FillEllipse(MarkerShadowBrush, skull.Left + 1, skull.Top + 2, skull.Width, skull.Height);
+                bkgBuffer.Graphics.FillEllipse(skullBrush, skull);
+                bkgBuffer.Graphics.DrawEllipse(outline, skull);
+                bkgBuffer.Graphics.FillRectangle(jawBrush, jaw);
+                bkgBuffer.Graphics.DrawRectangle(outline, jaw.X, jaw.Y, jaw.Width, jaw.Height);
+
+                FillEllipse(eyeBrush, point.X - (size * 0.27f), point.Y - (size * 0.17f), size * 0.22f, size * 0.24f);
+                FillEllipse(eyeBrush, point.X + (size * 0.05f), point.Y - (size * 0.17f), size * 0.22f, size * 0.24f);
+                PointF[] nose =
+                {
+                    new PointF(point.X, point.Y + (size * 0.02f)),
+                    new PointF(point.X - (size * 0.08f), point.Y + (size * 0.18f)),
+                    new PointF(point.X + (size * 0.08f), point.Y + (size * 0.18f))
+                };
+                bkgBuffer.Graphics.FillPolygon(eyeBrush, nose);
+                bkgBuffer.Graphics.DrawLine(toothPen, point.X - (size * 0.09f), jaw.Top + 2, point.X - (size * 0.09f), jaw.Bottom - 1);
+                bkgBuffer.Graphics.DrawLine(toothPen, point.X + (size * 0.09f), jaw.Top + 2, point.X + (size * 0.09f), jaw.Bottom - 1);
+            }
+
+            if (matched)
+            {
+                DrawEllipse(new Pen(Color.White, 1.8f), point.X - offset - 4, point.Y - offset - 4, size + 8, size + 8);
+            }
+        }
+
+        private void DrawGroundSpawnMarker(PointF point, bool selected)
+        {
+            float size = Math.Max(SpawnPlusSize + 4, 12);
+            float offset = size / 2f;
+            PointF[] diamond =
+            {
+                new PointF(point.X, point.Y - offset),
+                new PointF(point.X + offset, point.Y),
+                new PointF(point.X, point.Y + offset),
+                new PointF(point.X - offset, point.Y)
+            };
+
+            using (var fill = new SolidBrush(Color.FromArgb(224, 202, 137, 44)))
+            using (var border = new Pen(Color.FromArgb(245, 255, 236, 178), 1.3f))
+            {
+                bkgBuffer.Graphics.FillPolygon(MarkerShadowBrush, OffsetPoints(diamond, 1, 2));
+                bkgBuffer.Graphics.FillPolygon(fill, diamond);
+                bkgBuffer.Graphics.DrawPolygon(border, diamond);
+            }
+
+            if (selected)
+            {
+                DrawEllipse(new Pen(ModernTheme.AccentWarm, 2.4f), point.X - offset - 4, point.Y - offset - 4, size + 8, size + 8);
+            }
+        }
+
+        private static PointF[] OffsetPoints(PointF[] points, float dx, float dy)
+        {
+            return points.Select(point => new PointF(point.X + dx, point.Y + dy)).ToArray();
+        }
+
+        private static Brush MarkerBrushFor(Spawninfo sp)
+        {
+            if (sp == null)
+            {
+                return Brushes.White;
+            }
+
+            if (sp.isPet || sp.isFamiliar || sp.isMount)
+            {
+                return Brushes.Gray;
+            }
+
+            return SpawnColors.ConColors[sp.Level] ?? Brushes.White;
+        }
+
         private void DrawSpawnNames(Brush dBrush, string tName, float x1, float y1)//, string gName)
         {
             var xoffset = bkgBuffer.Graphics.MeasureString(tName, drawFont).Width * 0.5f;
@@ -1155,7 +1961,7 @@ namespace myseq
             MouseMapLoc(e, out var mousex, out var mousey);
             var delta = 5.0f / Ratio;
 
-            Spawninfo sp = eq.FindMob(mousex, mousey, delta, true) ?? eq.FindMob(mousex, mousey, delta);
+            Spawninfo sp = FindHoverSpawn(e.Location);
 
             bool found;
             if (sp == null)
@@ -1165,7 +1971,9 @@ namespace myseq
             else
             {
                 found = true;
-                toolTip.SetToolTip(this, MobInfo(sp, false, false));
+                string info = SpawnInfoWindow(sp).ToString();
+                RefreshInfoCardForSelectedHover(sp);
+                toolTip.SetToolTip(this, info);
                 toolTip.AutomaticDelay = 0;
                 toolTip.Active = true;
             }
@@ -1187,6 +1995,129 @@ namespace myseq
             {
                 toolTip.SetToolTip(this, "");
             }
+        }
+
+        private Spawninfo FindHoverSpawn(Point mousePoint)
+        {
+            if (IsPointOnGamer(mousePoint))
+            {
+                return eq.GamerInfo;
+            }
+
+            Spawninfo bestSpawn = null;
+            float bestDistance = float.MaxValue;
+            float hitRadius = Math.Max(12f, SpawnPlusSize + 8f);
+
+            foreach (Spawninfo sp in eq.GetMobSnapshot())
+            {
+                if (!CanHitTestMapSpawn(sp))
+                {
+                    continue;
+                }
+
+                float screenX = CalcScreenCoordX(sp.X);
+                float screenY = CalcScreenCoordY(sp.Y);
+                float dx = Math.Abs(screenX - mousePoint.X);
+                float dy = Math.Abs(screenY - mousePoint.Y);
+                if (dx > hitRadius || dy > hitRadius)
+                {
+                    continue;
+                }
+
+                float distance = (dx * dx) + (dy * dy);
+                bool preferSpawn = bestSpawn == null
+                    || (SpawnVisibility.IsPlayer(sp) && !SpawnVisibility.IsPlayer(bestSpawn))
+                    || (SpawnVisibility.IsPlayer(sp) == SpawnVisibility.IsPlayer(bestSpawn) && distance < bestDistance);
+
+                if (preferSpawn)
+                {
+                    bestSpawn = sp;
+                    bestDistance = distance;
+                }
+            }
+
+            return bestSpawn;
+        }
+
+        private void RefreshInfoCardForSelectedHover(Spawninfo sp)
+        {
+            if (sp == null)
+            {
+                return;
+            }
+
+            bool isSelected = eq != null && eq.SelectedID == sp.SpawnID;
+            if (!isSelected && f1?.SpawnList?.TryGetSelectedSpawnId(out int selectedSpawnId) == true)
+            {
+                isSelected = selectedSpawnId == sp.SpawnID;
+            }
+
+            if (isSelected)
+            {
+                SetSelectionCardSpawn(sp);
+            }
+        }
+
+        private bool SelectMapSpawn(Point mousePoint)
+        {
+            Spawninfo sp = FindHoverSpawn(mousePoint);
+            if (sp == null)
+            {
+                return false;
+            }
+
+            eq.SetSelectedID(sp.SpawnID);
+            f1?.SpawnList.HighlightSelectedSpawn();
+
+            if (Settings.Default.AutoSelectSpawnList && sp.listitem != null)
+            {
+                sp.listitem.EnsureVisible();
+                sp.listitem.Selected = true;
+            }
+
+            SetSelectionCardSpawn(sp);
+            return true;
+        }
+
+        private bool IsPointOnGamer(Point mousePoint)
+        {
+            if (eq.GamerInfo == null || eq.GamerInfo.SpawnID == 0)
+            {
+                return false;
+            }
+
+            float hitRadius = Math.Max(14f, SpawnPlusSize + 8f);
+            float screenX = CalcScreenCoordX(eq.GamerInfo.X);
+            float screenY = CalcScreenCoordY(eq.GamerInfo.Y);
+
+            return Math.Abs(screenX - mousePoint.X) <= hitRadius
+                && Math.Abs(screenY - mousePoint.Y) <= hitRadius;
+        }
+
+        private bool CanHitTestMapSpawn(Spawninfo sp)
+        {
+            if (sp == null || string.IsNullOrEmpty(sp.Name))
+            {
+                return false;
+            }
+
+            if (SpawnVisibility.IsCorpse(sp))
+            {
+                bool depthFilter = SpawnVisibility.IsPlayer(sp)
+                    ? Settings.Default.DepthFilter && Settings.Default.FilterPlayerCorpses
+                    : Settings.Default.DepthFilter && Settings.Default.FilterNPCCorpses;
+
+                return SpawnVisibility.ShouldShowCorpse(sp)
+                    && (!depthFilter || IsWithinDepthFilter(sp.Z, eq.GamerInfo.Z));
+            }
+
+            if (SpawnVisibility.IsPlayer(sp))
+            {
+                return Settings.Default.ShowPlayers
+                    && (!FilterPlayers || IsWithinDepthFilter(sp.Z, eq.GamerInfo.Z));
+            }
+
+            return sp.flags == PacketType.Spawn && !sp.hidden && !sp.filtered;
         }
 
         private bool ToolTipGroundItem(bool found, GroundItem gi)
@@ -1253,11 +2184,23 @@ namespace myseq
             }
 
             tableLayoutPanel1.ColumnStyles[0].SizeType = SizeType.Absolute;
-            return MobshowInfo(ChangeSize, mobInfo);
+            string info = MobshowInfo(mobInfo);
+            CacheSelectedInfo(si.SpawnID, info);
+            return info;
         }
 
         private string NoSpawnInfo(bool ChangeSize)
         {
+            if (!string.IsNullOrWhiteSpace(lastInfoText))
+            {
+                return lastInfoText;
+            }
+
+            if (TryBuildSelectedListInfo(out string selectedListInfo))
+            {
+                return selectedListInfo;
+            }
+
             if (ChangeSize)
             {
                 tableLayoutPanel1.RowStyles[0].SizeType = SizeType.Absolute;
@@ -1276,8 +2219,11 @@ namespace myseq
                     tableLayoutPanel1.RowStyles[0].Height = (int)gt.Height + 7;
                 }
             }
-            MobInfoLabel.BackColor = Color.White;
-            return "Spawn Information Window";
+            MobInfoLabel.BackColor = Color.FromArgb(46, 53, 63);
+            MobInfoLabel.ForeColor = Color.FromArgb(232, 238, 244);
+            lblGameClock.BackColor = ModernTheme.Accent;
+            tableLayoutPanel1.BringToFront();
+            return "No spawn selected";
         }
 
         private void MeasureStrings(string label, out SizeF gt, out SizeF gf)
@@ -1289,26 +2235,19 @@ namespace myseq
             graphics.Dispose();
         }
 
-        private string MobshowInfo(bool ChangeSize, StringBuilder mobInfo)
+        private string MobshowInfo(StringBuilder mobInfo)
         {
-            MeasureStrings(lblGameClock.Text, out SizeF sc, out SizeF sf);
+            MeasureStrings(mobInfo.ToString(), out SizeF sc, out SizeF sf);
 
             tableLayoutPanel1.RowStyles[0].SizeType = SizeType.Absolute;
             tableLayoutPanel1.RowStyles[1].SizeType = SizeType.Absolute;
             if (Settings.Default.ShowTargetInfo)
             {
                 MobInfoLabel.Visible = true;
-
-                if (ChangeSize)
-                {
-                    var panel_width = sc.Width > sf.Width ? (int)sc.Width : (int)sf.Width;
-                    tableLayoutPanel1.Width = panel_width + (Settings.Default.SmallTargetInfo ? 40 : 10);
-                    tableLayoutPanel1.ColumnStyles[0].Width = panel_width + (Settings.Default.SmallTargetInfo ? 40 : 70);
-                    tableLayoutPanel1.RowStyles[0].Height = (int)sc.Height + 7;
-                    tableLayoutPanel1.RowStyles[1].Height = (int)sf.Height + (Settings.Default.SmallTargetInfo ? 40 : 120);
-                }
+                AdjustTableLayout(Settings.Default.SmallTargetInfo ? 22 : 30, sf, sc);
+                tableLayoutPanel1.BringToFront();
             }
-            else if (ChangeSize)
+            else
             {
                 tableLayoutPanel1.Width = (int)sc.Width + 10;
                 tableLayoutPanel1.ColumnStyles[0].Width = (int)sc.Width + 10;
@@ -1323,38 +2262,41 @@ namespace myseq
         {
             if (si.Level < (conColor.GreyRange + eq.GamerInfo.Level))
             {
-                MobInfoLabel.BackColor = Color.LightGray;
+                lblGameClock.BackColor = Color.FromArgb(150, 150, 150);
             }
             else if (si.Level < (conColor.GreenRange + eq.GamerInfo.Level))
             {
-                MobInfoLabel.BackColor = Color.PaleGreen;
+                lblGameClock.BackColor = Color.FromArgb(80, 150, 92);
             }
             else if (si.Level < (conColor.CyanRange + eq.GamerInfo.Level))
             {
-                MobInfoLabel.BackColor = Color.PowderBlue;
+                lblGameClock.BackColor = Color.FromArgb(68, 154, 174);
             }
             else if (si.Level < eq.GamerInfo.Level)
             {
-                MobInfoLabel.BackColor = Color.DeepSkyBlue;
+                lblGameClock.BackColor = Color.FromArgb(64, 126, 205);
             }
             else if (si.Level == eq.GamerInfo.Level)
             {
-                MobInfoLabel.BackColor = Color.White;
+                lblGameClock.BackColor = Color.FromArgb(232, 238, 244);
             }
             else
             {
-                MobInfoLabel.BackColor = si.Level <= eq.GamerInfo.Level + conColor.YellowRange ? Color.Yellow : Color.Red;
+                lblGameClock.BackColor = si.Level <= eq.GamerInfo.Level + conColor.YellowRange ? Color.FromArgb(202, 137, 44) : Color.FromArgb(190, 73, 64);
             }
 
             if (si.isEventController)
             {
-                MobInfoLabel.BackColor = Color.Violet;
+                lblGameClock.BackColor = Color.FromArgb(132, 82, 170);
             }
 
             if (si.isLDONObject)
             {
-                MobInfoLabel.BackColor = Color.LightGray;
+                lblGameClock.BackColor = Color.FromArgb(150, 150, 150);
             }
+
+            MobInfoLabel.BackColor = Color.FromArgb(46, 53, 63);
+            MobInfoLabel.ForeColor = Color.FromArgb(232, 238, 244);
         }
 
         private StringBuilder SpawnInfoWindow(Spawninfo si)
@@ -1376,102 +2318,47 @@ namespace myseq
 
         private void LargeWindow(Spawninfo si, StringBuilder mobInfo)
         {
-            mobInfo.AppendFormat("Name: {0} ({1})\n", si.Name, si.SpawnID);
+            mobInfo.AppendFormat("{0}\n", si.Name.FixMobName());
+            mobInfo.AppendFormat("{0}  Level {1}  {2}\n", SpawnKind(si), si.Level, si.Hide.GetHideStatus());
+            mobInfo.AppendFormat("{0} / {1}\n", eq.GetRace(si.Race), eq.GetClass(si.Class));
+            mobInfo.AppendFormat("Dist {0:f0}  Speed {1:f2}  ID {2}\n", SpawnDistance(si), si.SpeedRun, si.SpawnID);
+            mobInfo.AppendFormat("Y {0:f1}  X {1:f1}  Z {2:f1}", si.Y, si.X, si.Z);
 
-            if (si.isMerc)
+            if (si.Primary > 0 || si.Offhand > 0)
             {
-                mobInfo.AppendFormat("Level: {0} (Mercenary)\n", si.Level.ToString());
+                mobInfo.AppendFormat("\n{0}{1}",
+                    si.Primary > 0 ? $"Primary {si.PrimaryName} " : "",
+                    si.Offhand > 0 ? $"Offhand {si.OffhandName}" : "");
             }
-            else if (si.isPet)
-            {
-                mobInfo.AppendFormat("Level: {0} (Pet)\n", si.Level.ToString());
-            }
-            else if (si.isFamiliar)
-            {
-                mobInfo.AppendFormat("Level: {0} (Familiar)\n", si.Level.ToString());
-            }
-            else if (si.isMount)
-            {
-                mobInfo.AppendFormat("Level: {0} (Mount)\n", si.Level.ToString());
-            }
-            else
-            {
-                mobInfo.AppendFormat("Level: {0}\n", si.Level.ToString());
-            }
-
-            if (si.Primary > 0)
-            {
-                mobInfo.AppendFormat("Class: {0}    Primary: {1} ({2})\n", eq.GetClass(si.Class), si.PrimaryName, si.Primary);
-            }
-            else
-            {
-                mobInfo.AppendFormat("Class: {0}\n", eq.GetClass(si.Class));
-            }
-
-            if (si.Offhand > 0)
-            {
-                mobInfo.AppendFormat("Race: {0}    Offhand: {1} ({2})\n", eq.GetRace(si.Race), si.OffhandName, si.Offhand);
-            }
-            else
-            {
-                mobInfo.AppendFormat("Race: {0}\n", eq.GetRace(si.Race));
-            }
-
-            mobInfo.AppendFormat("Speed: {0:f3}\n", si.SpeedRun);
-
-            mobInfo.AppendFormat("Visibility: {0}\n", si.Hide.GetHideStatus());
-
-            mobInfo.AppendFormat("Distance: {0:f3}\n", SpawnDistance(si));
-
-            mobInfo.AppendFormat("Y: {0:f3}  X: {1:f3}  Z: {2:f3}", si.Y, si.X, si.Z);
         }
 
         private void SmallWindow(Spawninfo si, StringBuilder mobInfo)
         {
-            // small target window version
-            if (si.isMerc)
-            {
-                mobInfo.AppendFormat("Mercenary: {0}\n", si.Name);
-            }
-            else if (si.isPet)
-            {
-                mobInfo.AppendFormat("Pet: {0}\n", si.Name);
-            }
-            else if (si.isFamiliar)
-            {
-                mobInfo.AppendFormat("Familiar: {0}\n", si.Name);
-            }
-            else if (si.isMount)
-            {
-                mobInfo.AppendFormat("Mount: {0}\n", si.Name);
-            }
-            else if (si.IsPlayer)
-            {
-                mobInfo.AppendFormat("Player: {0}\n", si.Name);
-            }
-            else if (si.isCorpse)
-            {
-                mobInfo.AppendFormat("Corpse: {0}\n", si.Name);
-            }
-            else
-            {
-                mobInfo.AppendFormat("NPC: {0}\n", si.Name);
-            }
+            mobInfo.AppendFormat("{0}: {1}\n", SpawnKind(si), si.Name.FixMobName());
+            mobInfo.AppendFormat("L{0} {1}  Dist {2:f0}\n", si.Level, eq.GetClass(si.Class), SpawnDistance(si));
+            mobInfo.AppendFormat("Y {0:f1} X {1:f1} Z {2:f1}", si.Y, si.X, si.Z);
+        }
 
-            mobInfo.AppendFormat("Level {0} / {1}\n", si.Level.ToString(), si.Hide.GetHideStatus());
-
-            mobInfo.AppendFormat("{0} / {1}\n", eq.GetRace(si.Race), eq.GetClass(si.Class));
-
-            mobInfo.AppendFormat("Speed: {0:f3}  Dist: {1:f0}\n", si.SpeedRun, SpawnDistance(si));
-
-            mobInfo.AppendFormat("Y: {0:f1} X: {1:f1} Z: {2:f1}", si.Y, si.X, si.Z);
+        private static string SpawnKind(Spawninfo si)
+        {
+            if (si.isMerc) return "Merc";
+            if (si.isPet) return "Pet";
+            if (si.isFamiliar) return "Familiar";
+            if (si.isMount) return "Mount";
+            if (SpawnVisibility.IsPlayer(si)) return "Player";
+            if (si.isCorpse) return "Corpse";
+            if (si.isEventController) return "Controller";
+            if (si.isLDONObject) return "Object";
+            return "NPC";
         }
 
         public void ResetInfoWindow()
         {
             MobInfoLabel.Text = "Spawn Information Window";
 
-            MobInfoLabel.BackColor = Color.White;
+            MobInfoLabel.BackColor = Color.FromArgb(46, 53, 63);
+            MobInfoLabel.ForeColor = Color.FromArgb(232, 238, 244);
+            lblGameClock.BackColor = ModernTheme.Accent;
 
             MobInfoLabel.Visible = true;
         }
@@ -1503,14 +2390,18 @@ namespace myseq
                 var colorRangeCircle = Settings.Default.AlertInsideRangeCircle;
                 if ((eq.SelectedID == 99999) && (eq.SpawnX == -1))
                 {
-                    MobInfoLabel.Text = MobInfo(null, true, true);
+                    MobInfoLabel.Text = SelectedListInfo();
+                }
+                else if (eq.SelectedID != 99999 && !eq.TryGetMobBySpawnId(eq.SelectedID, out _))
+                {
+                    MobInfoLabel.Text = SelectedListInfo();
                 }
 
                 // Collect mob trails, every 8th pass - approx once every 1 sec
                 map.trails.CountMobTrails(eq);
                 // Draw Spawns
 
-                foreach (Spawninfo sp in eq.GetMobsReadonly().Values)
+                foreach (Spawninfo sp in eq.GetMobSnapshot())
                 {
                     var sPoint = new PointF(
                     (float)Math.Round(CalcScreenCoordX(sp.X), 0),
@@ -1537,7 +2428,7 @@ namespace myseq
                     {
                         if (curTarget == sp.Name)
                         {
-                            FillRectangle(WhiteBrush, sPoint.X - PlusSzOZ - 1, sPoint.Y - PlusSzOZ - 1, SpawnPlusSize + 2, SpawnPlusSize + 2);
+                            DrawEllipse(new Pen(Color.White, 2.2f), sPoint.X - PlusSzOZ - 5, sPoint.Y - PlusSzOZ - 5, SpawnPlusSize + 10, SpawnPlusSize + 10);
                         }
 
                         if (sp.isEventController)
@@ -1548,7 +2439,7 @@ namespace myseq
                         {
                             DrawSpecialMobs(pZ, sp, sPoint.X, sPoint.Y, Color.Gray);
                         }
-                        else if (sp.Type == 0)
+                        else if (SpawnVisibility.IsPlayer(sp))
                         {
                             // Draw Other Players
 
@@ -1580,6 +2471,12 @@ namespace myseq
 
         private void DrawNPCs(float pZ, bool DrawDirection, Spawninfo sp, float x, float y)
         {
+            if (SpawnVisibility.ShouldHide(sp))
+            {
+                sp.filtered = true;
+                return;
+            }
+
             if ((!Settings.Default.DepthFilter && Settings.Default.FilterNPCs) || IsWithinDepthFilter(sp.Z, pZ))
             {
                 sp.filtered = false;
@@ -1601,15 +2498,7 @@ namespace myseq
                     DrawDirectionLines(sp, x, y);
                 }
 
-                // Draw NPCs
-                if ((sp.isPet && !Settings.Default.ShowPVP) || sp.isFamiliar || sp.isMount)
-                {
-                    FillEllipse(new SolidBrush(Color.Gray), x - SpawnSizeOffset, y - SpawnSizeOffset, SpawnSize, SpawnSize);
-                }
-                else if (SpawnColors.ConColors[sp.Level] != null)
-                {
-                    FillEllipse(SpawnColors.ConColors[sp.Level], x - SpawnSizeOffset, y - SpawnSizeOffset, SpawnSize, SpawnSize);
-                }
+                DrawModernCircleMarker(x, y, MarkerBrushFor(sp), eq.SelectedID == sp.SpawnID, false);
 
                 // Draw PC color border around Mercenary
 
@@ -1650,6 +2539,12 @@ namespace myseq
 
         private void DrawOtherPlayers(DrawOptions DrawOpts, float pZ, Spawninfo sp, float x, float y)
         {
+            if (SpawnVisibility.ShouldHide(sp))
+            {
+                sp.filtered = true;
+                return;
+            }
+
             if (!FilterPlayers || IsWithinDepthFilter(sp.Z, pZ))
             {
                 sp.filtered = false;
@@ -1683,9 +2578,7 @@ namespace myseq
 
         private void DrawPlayer(Spawninfo sp, float x, float y)
         {
-            FillRectangle(SpawnColors.ConColors[sp.Level], x - PlusSzOZ + 0.5f, y - PlusSzOZ + 0.5f, SpawnPlusSize, SpawnPlusSize);
-
-            DrawRectangle(PCBorder, x - PlusSzOZ + 0.5f, y - PlusSzOZ + 0.5f, SpawnPlusSize, SpawnPlusSize);
+            DrawModernPlayerMarker(x, y, MarkerBrushFor(sp), eq.SelectedID == sp.SpawnID, false);
 
             // draw purple border around players
 
@@ -1723,9 +2616,7 @@ namespace myseq
 
         private void DrawPVP(Spawninfo sp, float x, float y)
         {
-            // Draw the filled triangle and border
-            FillTriangle(SpawnColors.ConColors[sp.Level], x, y, SelectSizeOffset);
-            DrawTriangle(PCBorder, x, y, SelectSizeOffset);
+            DrawModernPlayerMarker(x, y, MarkerBrushFor(sp), eq.SelectedID == sp.SpawnID, false);
 
             // Handle name drawing based on settings
             if (ShowPCName && !string.IsNullOrEmpty(sp.Name))
@@ -1758,9 +2649,9 @@ namespace myseq
             var npcCorpseDepthFilter = Settings.Default.DepthFilter && Settings.Default.FilterNPCCorpses;
 
             // Iterate through all spawns
-            foreach (Spawninfo sp in eq.GetMobsReadonly().Values)
+            foreach (Spawninfo sp in eq.GetMobSnapshot())
             {
-                if (!sp.isCorpse || sp.hidden)
+                if (!ShouldDrawCorpse(sp))
                 {
                     continue; // Skip non-corpse or hidden spawns
                 }
@@ -1771,7 +2662,7 @@ namespace myseq
 
                 sp.proxAlert = false;
 
-                if (sp.IsPlayer)
+                if (SpawnVisibility.IsPlayer(sp))
                 {
                     HandleCorpseDrawing(sp, corpsePoint, pcCorpseDepthFilter, pZ, Color.Yellow, Settings.Default.ShowPlayerCorpseNames);
                 }
@@ -1780,6 +2671,11 @@ namespace myseq
                     HandleCorpseDrawing(sp, corpsePoint, npcCorpseDepthFilter, pZ, Color.Cyan, Settings.Default.ShowNPCCorpseNames);
                 }
             }
+        }
+
+        private bool ShouldDrawCorpse(Spawninfo sp)
+        {
+            return SpawnVisibility.ShouldShowCorpse(sp);
         }
 
         private void HandleCorpseDrawing(Spawninfo sp, PointF corpsePoint, bool depthFilter, float pZ, Color color, bool showNames)
@@ -1791,7 +2687,7 @@ namespace myseq
             }
 
             sp.filtered = false;
-            DrawCorpseShape(corpsePoint, color);
+            DrawCorpseShape(corpsePoint, color, false);
 
             if (showNames && !string.IsNullOrEmpty(sp.Name))
             {
@@ -1810,26 +2706,19 @@ namespace myseq
             return z >= minZ && z <= maxZ;
         }
 
-        private void DrawCorpseShape(PointF corpsePoint, Color color)
+        private void DrawCorpseShape(PointF corpsePoint, Color color, bool matched)
         {
-            using (Pen pen = new Pen(new SolidBrush(color)))
-            {
-                if (color == Color.Yellow)
-                {
-                    DrawRectangle(pen, corpsePoint.X - PlusSzOZ + 0.5f, corpsePoint.Y - PlusSzOZ + 0.5f, SpawnPlusSize, SpawnPlusSize);
-                }
-                else if (color == Color.Cyan)
-                {
-                    DrawCross(pen, corpsePoint, PlusSzOZ - 0.5f);
-                }
-            }
+            DrawModernCorpseMarker(corpsePoint, color, matched);
         }
 
         private void DrawSpecialMobs(float pZ, Spawninfo sp, float x, float y, Color color)
         {
             if (!NPCDepthFilter || IsWithinDepthFilter(sp.Z, pZ))
             {
-                FillEllipse(new SolidBrush(color), x - SpawnSizeOffset, y - SpawnSizeOffset, SpawnSize, SpawnSize);
+                using (var brush = new SolidBrush(color))
+                {
+                    DrawModernCircleMarker(x, y, brush, eq.SelectedID == sp.SpawnID, false);
+                }
                 sp.filtered = false;
             }
             else
@@ -1840,16 +2729,9 @@ namespace myseq
 
         private void LineGamerToSelected(float playerx, float playery, Spawninfo sp, float x, float y)
         {
-            DrawEllipse(PinkPen, x - SelectSizeOffset, y - SelectSizeOffset, SelectSize, SelectSize);
-
-            // Update the Spawn Information Window if not based on selected timer
-
-            if (eq.SpawnX == -1)
-            {
-                MobInfoLabel.Text = MobInfo(sp, true, true);
-
-                DrawLine(PinkPen, playerx, playery, x, y);
-            }
+            DrawEllipse(SelectionPen, x - SelectSizeOffset, y - SelectSizeOffset, SelectSize, SelectSize);
+            SetSelectionCardSpawn(sp);
+            DrawLine(SelectionPen, playerx, playery, x, y);
 
             sp.proxAlert = false;
         }
@@ -1912,7 +2794,10 @@ namespace myseq
                 {
                     // Enter proximity: enable proximity alert and trigger sound settings.
                     sp.proxAlert = true;
-                    new FormMethods().SwitchOnSoundSettings();
+                    if (Settings.Default.playAlerts)
+                    {
+                        new FormMethods().SwitchOnSoundSettings();
+                    }
                 }
             }
             else if (!isEntering)
@@ -2487,7 +3372,9 @@ namespace myseq
 
             grounditemInfo.AppendFormat(gi.ItemLocation.ToString());
 
-            MobInfoLabel.BackColor = Color.White;
+            MobInfoLabel.BackColor = Color.FromArgb(46, 53, 63);
+            MobInfoLabel.ForeColor = Color.FromArgb(232, 238, 244);
+            lblGameClock.BackColor = ModernTheme.Accent;
 
             MeasureStrings(grounditemInfo.ToString(), out SizeF sc, out SizeF sf);
 
@@ -2495,7 +3382,7 @@ namespace myseq
 
             sc.ToPointF();
 
-            AdjustTableLayout(9, sf, sc);
+            AdjustTableLayout(24, sf, sc);
 
             return grounditemInfo.ToString();
         }
@@ -2555,7 +3442,7 @@ namespace myseq
 
                 // Draw Ground Spawns
 
-                foreach (GroundItem gi in eq.GetItemsReadonly())
+                foreach (GroundItem gi in eq.GetItemSnapshot())
 
                 {
                     x = (float)Math.Round(CalcScreenCoordX(gi.ItemLocation.X), 0);
@@ -2566,7 +3453,7 @@ namespace myseq
                     {
                         gi.Filtered = false;
                         PointF giPoint = new PointF(x, y);
-                        DrawBigX(giPoint, PlusSzOZ);
+                        DrawGroundSpawnMarker(giPoint, eq.SpawnX == gi.ItemLocation.X && eq.SpawnY == gi.ItemLocation.Y && eq.SelectedID == 99999);
                     }
                     else
                     {
@@ -2590,13 +3477,11 @@ namespace myseq
             {
                 GetGamerPoint();
 
-                DrawLine(YellowPen, gamerPos.X, gamerPos.Y, x, y);
+                DrawLine(SelectionPen, gamerPos.X, gamerPos.Y, x, y);
 
-                DrawEllipse(PinkPen, x - SelectSizeOffset, y - SelectSizeOffset, SelectSize, SelectSize);
+                DrawEllipse(SelectionPen, x - SelectSizeOffset, y - SelectSizeOffset, SelectSize, SelectSize);
 
-                // Update the Spawn Information Window
-
-                MobInfoLabel.Text = GroundItemInfo(gi);
+                UpdateSelectionCardGroundItem(gi);
             }
         }
 
@@ -2657,14 +3542,15 @@ namespace myseq
 
         #endregion DrawDirectionLines
 
-        public void SetUpdateSteps()
+        public void SetUpdateSteps() => SetUpdateSteps(Settings.Default.UpdateDelay);
+
+        public void SetUpdateSteps(int updateDelay)
         {
             // Define constants for minimum values
             const int MinUpdateSteps = 3;
             const int MinUpdateTicks = 1;
 
-            // Cache the UpdateDelay value and prevent division by zero
-            int updateDelay = Settings.Default.UpdateDelay;
+            // Prevent division by zero
             if (updateDelay <= 0)
             {
                 // Set to a sensible default value to avoid division by zero
@@ -2782,16 +3668,21 @@ namespace myseq
             if (Settings.Default.ShowTargetInfo)
             {
                 // Determine the necessary width based on content sizes.
-                int maxWidth = (int)Math.Max(stringContentSize.Width, labelSize.Width) + 10;
+                int maxWidth = Math.Max(220, (int)Math.Ceiling(Math.Max(stringContentSize.Width, labelSize.Width)) + 28);
+                int infoHeight = (int)Math.Ceiling(stringContentSize.Height) + heightAdder;
+                int clockHeight = Math.Max(24, (int)Math.Ceiling(labelSize.Height) + 8);
 
                 tableLayoutPanel1.Width = maxWidth;
                 tableLayoutPanel1.ColumnStyles[0].Width = maxWidth;
+                MobInfoLabel.Width = maxWidth;
 
                 tableLayoutPanel1.RowStyles[0].SizeType = SizeType.Absolute;
                 tableLayoutPanel1.RowStyles[1].SizeType = SizeType.Absolute;
 
-                tableLayoutPanel1.RowStyles[0].Height = (int)labelSize.Height + 7;
-                tableLayoutPanel1.RowStyles[1].Height = (int)stringContentSize.Height + heightAdder;
+                tableLayoutPanel1.RowStyles[0].Height = clockHeight;
+                tableLayoutPanel1.RowStyles[1].Height = infoHeight;
+                MobInfoLabel.Height = infoHeight;
+                tableLayoutPanel1.Height = clockHeight + infoHeight + 2;
             }
             else
             {

@@ -2,7 +2,7 @@
 using Structures;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
@@ -40,12 +40,28 @@ namespace myseq
 
         public DrawOptions DrawOpts = DrawOptions.DrawNormal;
 
+        private const int DefaultPacketUpdateDelay = 50;
+        private const int MinPacketUpdateDelay = 25;
+        private const int FastMapRefreshDelay = 50;
+        private const int ListMaintenanceDelayMs = 300;
+        private const int SlowPacketTickWarningMs = 75;
+        private const int SlowMapTickWarningMs = 75;
+
         public string alertAddmobname = "";
         public float alertX = 0.0f;
         public float alertY = 0.0f;
         public float alertZ = 0.0f;
 
         private bool bIsRunning;
+        private readonly Timer timMapRefresh = new Timer();
+        private readonly Timer timLayoutRefresh = new Timer();
+        private long lastListMaintenanceTick;
+        private long lastStatusUpdateTick;
+        private ToolStripStatusLabel toolStripDiagnostics;
+        private ToolStripMenuItem layoutPresetDefault;
+        private ToolStripMenuItem layoutPresetMapFocus;
+        private ToolStripMenuItem layoutPresetLists;
+        private ToolStripMenuItem layoutPresetDebug;
 
         private bool bFilter1;
         private bool bFilter2;
@@ -67,11 +83,16 @@ namespace myseq
             comm = new EQCommunications(eq, this);
 
             InitializeComponent();
+            dockPanel.Theme = new VS2015BlueTheme();
 
             LogLib.maxLogLevel = LogLevel.DefaultMaxLevel;
             LogLib.WriteLine("MySEQ Open Version: " + Version);
 
             LoadPrefs();
+            ModernTheme.ApplyMainForm(this);
+            ApplyModernToolbar();
+            InstallModernStatusBar();
+            InstallLayoutPresetMenu();
 
             mapCon = mapPane.mapCon;
 
@@ -83,6 +104,8 @@ namespace myseq
             mapPane.TabText = "map_pane";
 
             mapCon.SetComponents(this, mapPane, eq, map, mapData);
+            mapCon.UpdateRailState();
+            mapCon.ApplyMapOverlayVisibility();
             mark.SetComponents(eq);
             mapPane.SetComponents(this);
 
@@ -120,7 +143,11 @@ namespace myseq
             toolStripVersion.Text = Version;
             mapCon.ReAdjust();
 
-            timPackets.Interval = Settings.Default.UpdateDelay;
+            timPackets.Interval = GetPacketUpdateDelay();
+            timMapRefresh.Interval = FastMapRefreshDelay;
+            timMapRefresh.Tick += TimMapRefresh_Tick;
+            timLayoutRefresh.Interval = 250;
+            timLayoutRefresh.Tick += TimLayoutRefresh_Tick;
 
             // This is delay that stops emails and alert sounds right after zoning
             timDelayAlerts.Interval = 10000;
@@ -128,7 +155,7 @@ namespace myseq
             // This is for processing timers, do it once per second.
             timProcessTimers.Interval = 1000;
 
-            mapCon.SetUpdateSteps();
+            mapCon.SetUpdateSteps(GetPacketUpdateDelay());
 
             Text = BaseTitle;
 
@@ -138,10 +165,13 @@ namespace myseq
             }
         }
 
-        public void StopListening()
+        public void StopListening(bool playStatusSound = true)
         {
+            bool wasRunning = bIsRunning;
+
             // Stop the Timer
             timPackets.Stop();
+            timMapRefresh.Stop();
             timDelayAlerts.Stop();
             DisablePlayAlerts();
 
@@ -151,19 +181,24 @@ namespace myseq
 
             toolStripStartStop.Text = "Go";
             toolStripStartStop.ToolTipText = "Connect to Server";
-            toolStripStartStop.Image = Resources.PlayHS;
+            toolStripStartStop.Image = ModernTheme.CreateToolbarIcon(ModernIcon.Connect);
 
             bIsRunning = false;
             toolStripServerAddress.Text = "";
+
+            if (playStatusSound && wasRunning)
+            {
+                ConnectionStatusSound.PlayDisconnected();
+            }
         }
 
-        private void MainForm_Closing(object sender, CancelEventArgs e)
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             if (Settings.Default.SaveOnExit)
             {
                 SavePrefs();
             }
-            StopListening();
+            StopListening(false);
         }
 
         public void CmdCommand_Click(object sender, EventArgs e)
@@ -208,9 +243,13 @@ namespace myseq
                 currentIPAddress = Settings.Default.IPAddress5;
             }
 
-            if (currentIPAddress.Length == 0)
+            if (string.IsNullOrWhiteSpace(currentIPAddress))
             {
-                return;
+                currentIPAddress = "127.0.0.1";
+                Settings.Default.IPAddress1 = currentIPAddress;
+                Settings.Default.CurrentIPAddress = 0;
+                mnuIPAddress1.Checked = true;
+                SavePrefs();
             }
 
             // Try to connect to the server
@@ -228,6 +267,9 @@ namespace myseq
 
             // Start the timer
             timPackets.Start();
+            timMapRefresh.Start();
+            timDelayAlerts.Start();
+            DisablePlayAlerts();
 
             mapCon.Focus();
             //sets some variables | Loads race, class, gi files.
@@ -240,9 +282,10 @@ namespace myseq
 
             toolStripStartStop.Text = "Stop";
             toolStripStartStop.ToolTipText = "Disconnect from Server";
-            toolStripStartStop.Image = Resources.RedDelete;
+            toolStripStartStop.Image = ModernTheme.CreateToolbarIcon(ModernIcon.Disconnect, true);
 
             bIsRunning = true;
+            ConnectionStatusSound.PlayConnected();
         }
 
         public void SetCharSelection(string player_name)
@@ -295,6 +338,7 @@ namespace myseq
 
             Settings.Default.CollectMobTrails = false;
             Settings.Default.DepthFilter = false;
+            NormalizePacketUpdateDelay();
 
             SetGridInterval();
 
@@ -399,7 +443,7 @@ namespace myseq
 
             if (Settings.Default.DepthFilter)
             {
-                toolStripDepthFilterButton.Image = Resources.ExpandSpaceHS;
+                toolStripDepthFilterButton.Image = ModernTheme.CreateToolbarIcon(ModernIcon.Depth, true);
             }
 
             mnuDynamicAlpha.Checked = mnuDynamicAlpha2.Checked = Settings.Default.UseDynamicAlpha;
@@ -465,6 +509,7 @@ namespace myseq
             mnuViewStatusBar.Checked = Settings.Default.ShowStatusBar;
 
             mnuViewDepthFilterBar.Checked = Settings.Default.ShowToolBar;
+            mnuViewMapRail.Checked = Settings.Default.ShowMapRail;
 
             if (!Settings.Default.ShowStatusBar)
             {
@@ -521,6 +566,44 @@ namespace myseq
 
         private void SavePrefs() => Settings.Default.Save();
 
+        private static int GetPacketUpdateDelay()
+        {
+            return Math.Clamp(Settings.Default.UpdateDelay, MinPacketUpdateDelay, 1000);
+        }
+
+        private static void NormalizePacketUpdateDelay()
+        {
+            if (Settings.Default.UpdateDelay <= 0 || Settings.Default.UpdateDelay == 100)
+            {
+                Settings.Default.UpdateDelay = DefaultPacketUpdateDelay;
+            }
+            else
+            {
+                Settings.Default.UpdateDelay = GetPacketUpdateDelay();
+            }
+        }
+
+        public bool ShouldRunListMaintenance()
+        {
+            long now = Environment.TickCount64;
+
+            if (now - lastListMaintenanceTick < ListMaintenanceDelayMs)
+            {
+                return false;
+            }
+
+            lastListMaintenanceTick = now;
+            return true;
+        }
+
+        private static void LogSlowTiming(string label, long elapsedMs, int thresholdMs)
+        {
+            if (elapsedMs >= thresholdMs)
+            {
+                LogLib.WriteLine($"{label} took {elapsedMs}ms", LogLevel.Warning);
+            }
+        }
+
         private void MainForm_Move(object sender, EventArgs e)
         {
             if (WindowState == FormWindowState.Normal)
@@ -536,16 +619,231 @@ namespace myseq
                 Settings.Default.WindowsSize = Size;
             }
             Settings.Default.WindowState = WindowState;
+            QueueLayoutRefresh();
+        }
+
+        private void QueueLayoutRefresh()
+        {
+            timLayoutRefresh.Stop();
+            timLayoutRefresh.Start();
+        }
+
+        private void TimLayoutRefresh_Tick(object sender, EventArgs e)
+        {
+            timLayoutRefresh.Stop();
+            RefreshDockedLists();
+            MapConInvalidate();
+        }
+
+        private void RefreshDockedLists()
+        {
+            dockPanel?.PerformLayout();
+            SpawnList.RefreshList();
+            SpawnTimerList.RefreshList();
+            GroundItemList.RefreshList();
+        }
+
+        private void InstallModernStatusBar()
+        {
+            toolStripDiagnostics = new ToolStripStatusLabel
+            {
+                AutoSize = true,
+                BorderSides = ToolStripStatusLabelBorderSides.Left
+                    | ToolStripStatusLabelBorderSides.Top
+                    | ToolStripStatusLabelBorderSides.Right
+                    | ToolStripStatusLabelBorderSides.Bottom,
+                Name = "toolStripDiagnostics",
+                Text = "Net: idle"
+            };
+
+            statusBarStrip.Items.Add(toolStripDiagnostics);
+        }
+
+        private void InstallLayoutPresetMenu()
+        {
+            ToolStripMenuItem viewMenu = null;
+            foreach (ToolStripItem item in mnuMainMenu.Items)
+            {
+                if (item is ToolStripMenuItem menu && menu.Text.Replace("&", "") == "View")
+                {
+                    viewMenu = menu;
+                    break;
+                }
+            }
+
+            if (viewMenu == null)
+            {
+                return;
+            }
+
+            layoutPresetDefault = CreateLayoutPresetItem("Default", (s, e) => ApplyLayoutPreset("Default"));
+            layoutPresetMapFocus = CreateLayoutPresetItem("Map Focus", (s, e) => ApplyLayoutPreset("Map Focus"));
+            layoutPresetLists = CreateLayoutPresetItem("Lists", (s, e) => ApplyLayoutPreset("Lists"));
+            layoutPresetDebug = CreateLayoutPresetItem("Debug", (s, e) => ApplyLayoutPreset("Debug"));
+
+            var presetMenu = new ToolStripMenuItem("Layout Presets");
+            presetMenu.DropDownItems.AddRange(new ToolStripItem[]
+            {
+                layoutPresetDefault,
+                layoutPresetMapFocus,
+                layoutPresetLists,
+                layoutPresetDebug
+            });
+
+            viewMenu.DropDownItems.Add(new ToolStripSeparator());
+            viewMenu.DropDownItems.Add(presetMenu);
+            UpdateLayoutPresetChecks("Default");
+        }
+
+        private static ToolStripMenuItem CreateLayoutPresetItem(string text, EventHandler handler)
+        {
+            return new ToolStripMenuItem(text, null, handler)
+            {
+                CheckOnClick = false
+            };
+        }
+
+        private void ApplyLayoutPreset(string preset)
+        {
+            switch (preset)
+            {
+                case "Map Focus":
+                    SetListPanelVisible(SpawnList, mnuShowSpawnList, false, DockState.DockLeft);
+                    SetListPanelVisible(SpawnTimerList, mnuShowSpawnListTimer, false, DockState.DockBottom);
+                    SetListPanelVisible(GroundItemList, mnuShowGroundItemList, false, DockState.DockBottom);
+                    break;
+                case "Lists":
+                    SetListPanelVisible(SpawnList, mnuShowSpawnList, true, DockState.DockLeft);
+                    SetListPanelVisible(SpawnTimerList, mnuShowSpawnListTimer, true, DockState.DockBottom);
+                    SetListPanelVisible(GroundItemList, mnuShowGroundItemList, true, DockState.DockBottom);
+                    break;
+                case "Debug":
+                    SetListPanelVisible(SpawnList, mnuShowSpawnList, true, DockState.DockLeft);
+                    SetListPanelVisible(SpawnTimerList, mnuShowSpawnListTimer, true, DockState.DockBottom);
+                    SetListPanelVisible(GroundItemList, mnuShowGroundItemList, true, DockState.DockBottom);
+                    statusBarStrip.Show();
+                    toolBarStrip.Show();
+                    Settings.Default.ShowStatusBar = mnuViewStatusBar.Checked = true;
+                    Settings.Default.ShowToolBar = mnuViewDepthFilterBar.Checked = true;
+                    break;
+                default:
+                    SetListPanelVisible(SpawnList, mnuShowSpawnList, true, DockState.DockLeft);
+                    SetListPanelVisible(SpawnTimerList, mnuShowSpawnListTimer, false, DockState.DockBottom);
+                    SetListPanelVisible(GroundItemList, mnuShowGroundItemList, false, DockState.DockBottom);
+                    break;
+            }
+
+            UpdateLayoutPresetChecks(preset);
+            QueueLayoutRefresh();
+        }
+
+        private void SetListPanelVisible(ListViewPanel panel, ToolStripMenuItem menuItem, bool visible, DockState dockState)
+        {
+            menuItem.Checked = visible;
+
+            if (panel == SpawnList)
+            {
+                Settings.Default.ShowMobList = visible;
+            }
+            else if (panel == SpawnTimerList)
+            {
+                Settings.Default.ShowMobListTimer = visible;
+            }
+            else if (panel == GroundItemList)
+            {
+                Settings.Default.ShowGroundItemList = visible;
+            }
+
+            if (visible)
+            {
+                panel.Show(dockPanel, dockState);
+                panel.RefreshList();
+            }
+            else
+            {
+                panel.Hide();
+            }
+        }
+
+        private void UpdateLayoutPresetChecks(string preset)
+        {
+            if (layoutPresetDefault == null)
+            {
+                return;
+            }
+
+            layoutPresetDefault.Checked = preset == "Default";
+            layoutPresetMapFocus.Checked = preset == "Map Focus";
+            layoutPresetLists.Checked = preset == "Lists";
+            layoutPresetDebug.Checked = preset == "Debug";
         }
 
         private void TimPackets_Tick(object sender, EventArgs e)
         {
             DrawOpts = Settings.Default.DrawOptions;
+            var stopwatch = Stopwatch.StartNew();
+
             comm.Tick();
-            mapCon.Tick();
             if (Settings.Default.CollectMobTrails)
             {
                 map.trails.CountMobTrails(eq);
+            }
+
+            LogSlowTiming("Packet refresh", stopwatch.ElapsedMilliseconds, SlowPacketTickWarningMs);
+        }
+
+        private void TimMapRefresh_Tick(object sender, EventArgs e)
+        {
+            if (mapCon == null)
+            {
+                return;
+            }
+
+            DrawOpts = Settings.Default.DrawOptions;
+            var stopwatch = Stopwatch.StartNew();
+
+            mapCon.Tick();
+            UpdateStatusSnapshot();
+
+            LogSlowTiming("Map redraw", stopwatch.ElapsedMilliseconds, SlowMapTickWarningMs);
+        }
+
+        private void UpdateStatusSnapshot()
+        {
+            long now = Environment.TickCount64;
+            if (now - lastStatusUpdateTick < 500)
+            {
+                return;
+            }
+
+            lastStatusUpdateTick = now;
+            int spawnCount = 0;
+            int visibleCount = 0;
+
+            foreach (Spawninfo spawn in eq.GetMobSnapshot())
+            {
+                spawnCount++;
+                if (!spawn.hidden && !spawn.filtered)
+                {
+                    visibleCount++;
+                }
+            }
+
+            string characterName = string.IsNullOrWhiteSpace(eq.GamerInfo?.Name) ? "No character" : eq.GamerInfo.Name.FixMobName();
+            string zoneName = string.IsNullOrWhiteSpace(CurZone) ? "No zone" : CurZone;
+            string netAge = comm.LastPacketReceivedAt == DateTime.MinValue
+                ? "never"
+                : $"{Math.Max(0, (DateTime.Now - comm.LastPacketReceivedAt).TotalSeconds):0.0}s";
+            string requestState = comm.IsRequestPending
+                ? $"pending {comm.PacketsProcessed}/{comm.PacketsExpected}"
+                : "ready";
+
+            toolStripServerAddress.Text = bIsRunning ? $"Server: {currentIPAddress}" : "Server: offline";
+            toolStripShortName.Text = $"Zone: {zoneName}";
+            toolStripVersion.Text = $"{characterName}  Spawns: {visibleCount}/{spawnCount}  Ground: {eq.GetItemSnapshot().Count}  Poll: {GetPacketUpdateDelay()}ms";
+            if (toolStripDiagnostics != null)
+            {
+                toolStripDiagnostics.Text = $"Net: {requestState}  Last: {netAge}";
             }
         }
 
@@ -691,6 +989,7 @@ namespace myseq
             else
             {
                 var fullmap = Path.Combine(Settings.Default.MapDir, si.Name.Trim());
+                LogLib.WriteLine($"Looking for map files under: {Settings.Default.MapDir}");
                 foundmap = NotZoningShowLayers(foundmap, fullmap);
             }
             //... Missing map
@@ -922,6 +1221,7 @@ namespace myseq
 
         private void MnuOptions_Click(object sender, EventArgs e)
         {
+            string previousMapDir = Settings.Default.MapDir;
             OptionsForm f3 = new OptionsForm();
             if (Settings.Default.OptionsWindowsLocation.X != 0 && Settings.Default.OptionsWindowsLocation.Y != 0)
             {
@@ -937,8 +1237,8 @@ namespace myseq
                 f3.Close();
                 return;
             }
-            timPackets.Interval = Settings.Default.UpdateDelay;
-            mapCon.SetUpdateSteps();
+            timPackets.Interval = GetPacketUpdateDelay();
+            mapCon.SetUpdateSteps(GetPacketUpdateDelay());
             ReloadAlertFiles();
             ResetMapPens();
             SpawnList.listView.BackColor = Settings.Default.ListBackColor;
@@ -963,6 +1263,11 @@ namespace myseq
 
             ServerSelection();
 
+            if (!string.Equals(previousMapDir, Settings.Default.MapDir, StringComparison.OrdinalIgnoreCase))
+            {
+                ReloadCurrentZoneMap();
+            }
+
             SetTitle();
 
             SavePrefs();
@@ -970,8 +1275,31 @@ namespace myseq
             MapConInvalidate();
         }
 
+        private void ReloadCurrentZoneMap()
+        {
+            if (string.IsNullOrWhiteSpace(CurZone) || CurZone == "CLZ" || CurZone == "DEFAULT")
+            {
+                return;
+            }
+
+            try
+            {
+                FindMapNotZoning(new Spawninfo { Name = CurZone.ToLowerInvariant() });
+            }
+            catch (Exception ex)
+            {
+                LogLib.WriteLine("Error reloading map after map folder change: ", ex);
+                map.LoadDummyMap();
+            }
+        }
+
         private void ServerSelection()
         {
+            if (string.IsNullOrWhiteSpace(Settings.Default.IPAddress1))
+            {
+                Settings.Default.IPAddress1 = "127.0.0.1";
+            }
+
             var ipAddresses = new[]
             {
         (mnuIPAddress1, Settings.Default.IPAddress1),
@@ -1032,7 +1360,7 @@ namespace myseq
             toolStripZPosLabel.Enabled = isChecked;
             toolStripResetDepthFilter.Enabled = isChecked;
 
-            toolStripDepthFilterButton.Image = isChecked ? Resources.ExpandSpaceHS : Resources.ShrinkSpaceHS;
+            toolStripDepthFilterButton.Image = ModernTheme.CreateToolbarIcon(ModernIcon.Depth, isChecked);
         }
 
         private void MnuDynamicAlpha_Click(object sender, EventArgs e)
@@ -1305,6 +1633,8 @@ namespace myseq
             mnuShowTargetInfo.Checked = Settings.Default.ShowTargetInfo;
             mnuShowTargetInfo2.Checked = Settings.Default.ShowTargetInfo;
 
+            mapCon?.ApplyTargetInfoVisibility();
+            RefreshMapRail();
             MapConInvalidate();
         }
 
@@ -1337,6 +1667,7 @@ namespace myseq
             mnuShowNPCs.Checked = !mnuShowNPCs.Checked;
             Settings.Default.ShowNPCs = mnuShowNPCs.Checked;
             comm.UpdateHidden(true);
+            MapConInvalidate();
         }
 
         private void MnuShowLookupText_Click(object sender, EventArgs e)
@@ -1377,6 +1708,7 @@ namespace myseq
             Settings.Default.ShowCorpses = mnuShowCorpses.Checked;
 
             comm.UpdateHidden(true);
+            MapConInvalidate();
         }
 
         private void MnuShowPlayers_Click(object sender, EventArgs e)
@@ -1987,6 +2319,7 @@ namespace myseq
             Settings.Default.ShowPCCorpses = mnuShowPCCorpses.Checked;
 
             comm.UpdateHidden(true);
+            MapConInvalidate();
         }
 
         private void MnuShowMyCorpse_Click(object sender, EventArgs e)
@@ -1996,6 +2329,7 @@ namespace myseq
             Settings.Default.ShowMyCorpse = mnuShowMyCorpse.Checked;
 
             comm.UpdateHidden(true);
+            MapConInvalidate();
         }
 
         private void MnuForceDistinctText_Click(object sender, EventArgs e)
@@ -2105,6 +2439,15 @@ namespace myseq
             {
                 toolBarStrip.Hide();
             }
+        }
+
+        private void MnuViewMapRail_Click(object sender, EventArgs e)
+        {
+            Settings.Default.ShowMapRail = !Settings.Default.ShowMapRail;
+            mnuViewMapRail.Checked = Settings.Default.ShowMapRail;
+            mapCon?.ApplyMapOverlayVisibility();
+            mapCon?.UpdateRailState();
+            MapConInvalidate();
         }
 
         private void ToolStripZPos_TextChanged(object sender, EventArgs e)
@@ -2743,6 +3086,147 @@ namespace myseq
         public void MapConInvalidate()
         {
             mapCon?.Invalidate();
+        }
+
+        public void ToggleNPCsFromRail()
+        {
+            MnuShowNPCs_Click(mnuShowNPCs, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void TogglePlayersFromRail()
+        {
+            MnuShowPlayers_Click(mnuShowPlayers, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void ToggleCorpsesFromRail()
+        {
+            MnuShowCorpses_Click(mnuShowCorpses, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void ToggleNPCCorpsesFromRail()
+        {
+            MnuShowCorpses_Click(mnuShowCorpses, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void TogglePCCorpsesFromRail()
+        {
+            MnuShowPCCorpses_Click(mnuShowPCCorpses, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void ToggleGridFromRail()
+        {
+            MnuShowGridLines_Click(mnuShowGridLines, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void ToggleZoneTextFromRail()
+        {
+            MnuShowZoneText_Click(mnuShowZoneText, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void ToggleTargetInfoFromRail()
+        {
+            MnuShowTargetInfo_Click(mnuShowTargetInfo, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        public void CycleFollowFromRail()
+        {
+            if (Settings.Default.FollowOption == FollowOption.None)
+            {
+                SetFollowOption(FollowOption.Player);
+            }
+            else if (Settings.Default.FollowOption == FollowOption.Player)
+            {
+                SetFollowOption(FollowOption.Target);
+            }
+            else
+            {
+                SetFollowOption(FollowOption.None);
+            }
+
+            RefreshMapRail();
+        }
+
+        public void ResetMapFromRail()
+        {
+            MnuMapReset_Click(mnuMapReset, EventArgs.Empty);
+            RefreshMapRail();
+        }
+
+        private void RefreshMapRail()
+        {
+            mapCon?.UpdateRailState();
+            MapConInvalidate();
+        }
+
+        private void ApplyModernToolbar()
+        {
+            toolBarStrip.BackgroundImage = null;
+            toolBarStrip.BackColor = ModernTheme.Surface;
+            toolBarStrip.ImageScalingSize = new Size(22, 22);
+            toolBarStrip.Padding = new Padding(8, 4, 8, 4);
+
+            SetToolbarIcon(toolStripStartStop, ModernIcon.Connect);
+            SetToolbarIcon(toolStripZoomIn, ModernIcon.ZoomIn);
+            SetToolbarIcon(toolStripZoomOut, ModernIcon.ZoomOut);
+            SetToolbarIcon(toolStripDepthFilterButton, ModernIcon.Depth, toolStripDepthFilterButton.Checked);
+            SetToolbarIcon(toolStripZPosDown, ModernIcon.Down);
+            SetToolbarIcon(toolStripZPosUp, ModernIcon.Up);
+            SetToolbarIcon(toolStripZNegUp, ModernIcon.Up);
+            SetToolbarIcon(toolStripZNegDown, ModernIcon.Down);
+            SetToolbarIcon(toolStripResetDepthFilter, ModernIcon.Reset);
+            SetToolbarIcon(toolStripOptions, ModernIcon.Options);
+
+            SetLookupControls(toolStripCheckLookup1, toolStripResetLookup1);
+            SetLookupControls(toolStripCheckLookup2, toolStripResetLookup2);
+            SetLookupControls(toolStripCheckLookup3, toolStripResetLookup3);
+            SetLookupControls(toolStripCheckLookup4, toolStripResetLookup4);
+            SetLookupControls(toolStripCheckLookup5, toolStripResetLookup5);
+
+            foreach (var box in new[] { toolStripLookupBox1, toolStripLookupBox2, toolStripLookupBox3, toolStripLookupBox4, toolStripLookupBox5 })
+            {
+                box.AutoSize = false;
+                box.Width = 104;
+                box.Margin = new Padding(6, 2, 2, 2);
+                box.BorderStyle = BorderStyle.FixedSingle;
+            }
+
+            foreach (var box in new[] { toolStripZPos, toolStripZNeg })
+            {
+                box.AutoSize = false;
+                box.Width = 48;
+                box.Margin = new Padding(4, 2, 4, 2);
+                box.BorderStyle = BorderStyle.FixedSingle;
+            }
+        }
+
+        private static void SetToolbarIcon(ToolStripButton button, ModernIcon icon, bool active = false)
+        {
+            button.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            button.Image = ModernTheme.CreateToolbarIcon(icon, active);
+            button.ImageScaling = ToolStripItemImageScaling.None;
+            button.AutoSize = false;
+            button.Width = 30;
+            button.Height = 28;
+            button.Margin = new Padding(2, 1, 2, 1);
+        }
+
+        private static void SetLookupControls(ToolStripButton modeButton, ToolStripButton resetButton)
+        {
+            SetToolbarIcon(modeButton, ModernIcon.SearchMode, modeButton.Checked);
+            modeButton.Text = "";
+            modeButton.BackColor = Color.Transparent;
+            modeButton.ToolTipText = "Toggle Lookup or Filter";
+
+            SetToolbarIcon(resetButton, ModernIcon.Clear);
+            resetButton.Text = "";
         }
     }
 }

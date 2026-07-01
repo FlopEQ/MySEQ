@@ -1042,7 +1042,7 @@ namespace myseq
             0,
             0});
             this.spnUpdateDelay.Minimum = new decimal(new int[] {
-            10,
+            25,
             0,
             0,
             0});
@@ -1050,7 +1050,7 @@ namespace myseq
             this.spnUpdateDelay.Size = new System.Drawing.Size(64, 20);
             this.spnUpdateDelay.TabIndex = 17;
             this.spnUpdateDelay.Value = new decimal(new int[] {
-            250,
+            50,
             0,
             0,
             0});

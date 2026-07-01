@@ -325,7 +325,7 @@ namespace myseq.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool AlwaysOnTop {
             get {
                 return ((bool)(this["AlwaysOnTop"]));
@@ -584,6 +584,30 @@ namespace myseq.Properties {
             }
             set {
                 this["ShowTargetInfo"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowMapLegend {
+            get {
+                return ((bool)(this["ShowMapLegend"]));
+            }
+            set {
+                this["ShowMapLegend"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowMapRail {
+            get {
+                return ((bool)(this["ShowMapRail"]));
+            }
+            set {
+                this["ShowMapRail"] = value;
             }
         }
         
@@ -1009,7 +1033,7 @@ namespace myseq.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("200")]
+        [global::System.Configuration.DefaultSettingValueAttribute("50")]
         public int UpdateDelay {
             get {
                 return ((int)(this["UpdateDelay"]));

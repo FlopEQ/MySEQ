@@ -91,6 +91,7 @@ LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	ServerDialog(HWND, UINT, WPARAM, LPARAM);
 bool FindNotepadPath(TCHAR(&notePad)[MAX_PATH]);
 INT_PTR CALLBACK	OffsetDialog(HWND, UINT, WPARAM, LPARAM);
+void LaunchOffsetDiffFinder(HWND hDlg);
 void GetPatchdate();
 BOOL WINAPI CtrlHandler(DWORD dwCtrlType);
 
@@ -702,15 +703,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		switch (lParam)
 		{
 		case FD_CONNECT: //Connected OK
-			MessageBeep(MB_OK);
 			fprintf(stdout, "New Connection Established.\n");
 			netServer.closeClientSocket();
 
 			break;
 
 		case FD_CLOSE: //Lost connection
-			MessageBeep(MB_ICONERROR);
-
 			//Clean up
 			netServer.closeClientSocket();
 			server_status = 1;
@@ -747,7 +745,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case FD_ACCEPT: //Incoming Client Connection
 		{
-			MessageBeep(MB_OK);
 			if (memReader.getCurrentPID() == 0)
 				memReader.openFirstProcess("eqgame", false);
 			netServer.closeClientSocket();
@@ -757,7 +754,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			else
 				server_status = 2;
 			if (h_MySEQServer) {
-				SetDlgItemText(h_MySEQServer, IDC_TEXT_STATUS, "Connected");
+				SetDlgItemText(h_MySEQServer, IDC_TEXT_STATUS, "Client connected");
 				check_delay = 0;
 			}
 		}
@@ -1014,6 +1011,38 @@ bool FindNotepadPath(TCHAR(&notePad)[MAX_PATH]) {
 	std::cout << "Notepad.exe not found in default directories";
 	return false;  // Return false if Notepad.exe is not found
 }
+
+void LaunchOffsetDiffFinder(HWND hDlg)
+{
+	TCHAR modulePath[MAX_PATH];
+	if (!GetModuleFileName(NULL, modulePath, MAX_PATH)) {
+		MessageBox(hDlg, _T("Could not locate the server install folder."), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	TCHAR* lastSlash = _tcsrchr(modulePath, _T('\\'));
+	if (lastSlash == NULL) {
+		MessageBox(hDlg, _T("Could not locate the server install folder."), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	*lastSlash = _T('\0');
+	std::basic_string<TCHAR> installDir(modulePath);
+	std::basic_string<TCHAR> toolPath = installDir + _T("\\tools\\offset-diff-finder.exe");
+
+	if (_taccess(toolPath.c_str(), 0) != 0) {
+		std::basic_string<TCHAR> message = _T("Could not find:\r\n") + toolPath;
+		MessageBox(hDlg, message.c_str(), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	std::basic_string<TCHAR> parameters = _T("/k \"\"") + toolPath + _T("\"\"");
+	HINSTANCE result = ShellExecute(hDlg, _T("open"), _T("cmd.exe"), parameters.c_str(), installDir.c_str(), SW_SHOWNORMAL);
+	if ((INT_PTR)result <= 32) {
+		MessageBox(hDlg, _T("Could not start the offset diff finder."), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+	}
+}
+
 // EQGameScanner Window dialogs
 INT_PTR CALLBACK OffsetDialog(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -1067,6 +1096,9 @@ INT_PTR CALLBACK OffsetDialog(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 		case IDC_BUTTON3:
 			scanner.setExe(eqFileName);
 			scanner.ScanSecondary(hDlg, &iniReader, &netServer);
+			break;
+		case IDC_BUTTON5:
+			LaunchOffsetDiffFinder(hDlg);
 			break;
 		case IDCANCEL:
 			EndDialog(hDlg, IDCANCEL);

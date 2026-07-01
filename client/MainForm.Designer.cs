@@ -52,6 +52,7 @@ namespace myseq
             this.mnuViewMenuBar = new System.Windows.Forms.ToolStripMenuItem();
             this.mnuViewStatusBar = new System.Windows.Forms.ToolStripMenuItem();
             this.mnuViewDepthFilterBar = new System.Windows.Forms.ToolStripMenuItem();
+            this.mnuViewMapRail = new System.Windows.Forms.ToolStripMenuItem();
             this.mnuShowSpawnList = new System.Windows.Forms.ToolStripMenuItem();
             this.mnuShowSpawnListTimer = new System.Windows.Forms.ToolStripMenuItem();
             this.mnuShowGroundItemList = new System.Windows.Forms.ToolStripMenuItem();
@@ -362,7 +363,8 @@ namespace myseq
             this.toolbarsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mnuViewMenuBar,
             this.mnuViewStatusBar,
-            this.mnuViewDepthFilterBar});
+            this.mnuViewDepthFilterBar,
+            this.mnuViewMapRail});
             this.toolbarsToolStripMenuItem.Name = "toolbarsToolStripMenuItem";
             this.toolbarsToolStripMenuItem.Size = new System.Drawing.Size(198, 22);
             this.toolbarsToolStripMenuItem.Text = "Toolbars";
@@ -390,6 +392,13 @@ namespace myseq
             this.mnuViewDepthFilterBar.Size = new System.Drawing.Size(162, 22);
             this.mnuViewDepthFilterBar.Text = "&Tool Bar Strip";
             this.mnuViewDepthFilterBar.Click += new System.EventHandler(this.MnuViewDepthFilterToolBar_Click);
+            // 
+            // mnuViewMapRail
+            // 
+            this.mnuViewMapRail.Name = "mnuViewMapRail";
+            this.mnuViewMapRail.Size = new System.Drawing.Size(162, 22);
+            this.mnuViewMapRail.Text = "Map &Rail";
+            this.mnuViewMapRail.Click += new System.EventHandler(this.MnuViewMapRail_Click);
             // 
             // toolStripSeparator9
             // 
@@ -2489,7 +2498,7 @@ namespace myseq
             this.Name = "MainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "MainForm";
-            this.Closing += new System.ComponentModel.CancelEventHandler(this.MainForm_Closing);
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
             this.Move += new System.EventHandler(this.MainForm_Move);
             this.Resize += new System.EventHandler(this.MainForm_Resize);
             this.mnuMainMenu.ResumeLayout(false);
@@ -2763,6 +2772,7 @@ namespace myseq
         private ToolStripMenuItem mnuViewMenuBar;
         private ToolStripMenuItem mnuViewStatusBar;
         private ToolStripMenuItem mnuViewDepthFilterBar;
+        private ToolStripMenuItem mnuViewMapRail;
         private ToolStripMenuItem addMapTextToolStripMenuItem;
 
         public readonly DeserializeDockContent m_deserializeDockContent;

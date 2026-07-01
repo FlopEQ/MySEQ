@@ -1,6 +1,7 @@
 ﻿using myseq.Properties;
 using Structures;
 using System;
+using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Media;
@@ -24,6 +25,78 @@ namespace myseq
             SetAlertTextFromSettings();
             SetDangerTextFromSettings();
             SetOptions(this);
+            ModernTheme.ApplyMainForm(this);
+            ApplyModernOptionsLayout();
+        }
+
+        private void ApplyModernOptionsLayout()
+        {
+            Text = "MySEQ Options";
+            StartPosition = FormStartPosition.CenterParent;
+            MinimumSize = new Size(620, 520);
+            Size = new Size(Math.Max(Width, 620), Math.Max(Height, 520));
+            BackColor = ModernTheme.SurfaceAlt;
+
+            tabOptions.Font = ModernTheme.UiFont;
+            tabOptions.Padding = new Point(14, 6);
+
+            foreach (TabPage page in tabOptions.TabPages)
+            {
+                page.BackColor = ModernTheme.SurfaceAlt;
+                page.ForeColor = ModernTheme.Text;
+                page.Padding = new Padding(8);
+            }
+
+            StyleOptionsControl(this);
+        }
+
+        private static void StyleOptionsControl(Control control)
+        {
+            foreach (Control child in control.Controls)
+            {
+                child.Font = ModernTheme.UiFont;
+
+                if (child is Button button)
+                {
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.BorderColor = ModernTheme.Border;
+                    button.BackColor = ModernTheme.Surface;
+                    button.ForeColor = ModernTheme.Text;
+                    button.Height = Math.Max(button.Height, 28);
+                }
+                else if (child is TextBox textBox)
+                {
+                    textBox.BorderStyle = BorderStyle.FixedSingle;
+                    textBox.BackColor = Color.White;
+                    textBox.ForeColor = Color.FromArgb(24, 28, 34);
+                }
+                else if (child is ComboBox comboBox)
+                {
+                    comboBox.FlatStyle = FlatStyle.Flat;
+                }
+                else if (child is NumericUpDown numeric)
+                {
+                    numeric.TextAlign = HorizontalAlignment.Right;
+                }
+                else if (child is GroupBox groupBox)
+                {
+                    groupBox.ForeColor = ModernTheme.Text;
+                    groupBox.BackColor = ModernTheme.SurfaceAlt;
+                }
+                else if (child is Label label)
+                {
+                    label.ForeColor = ModernTheme.Text;
+                }
+                else if (child is CheckBox checkBox)
+                {
+                    checkBox.ForeColor = ModernTheme.Text;
+                }
+
+                if (child.HasChildren)
+                {
+                    StyleOptionsControl(child);
+                }
+            }
         }
 
         private static void SetFgDrawOptions(DrawOptions DrawOpts, OptionsForm options)
@@ -178,10 +251,13 @@ namespace myseq
 
         private void CmdCommand_Click(object sender, EventArgs e)
         {
-            if (chkSaveOnExit.Checked)
+            if (string.IsNullOrWhiteSpace(Settings.Default.IPAddress1))
             {
-                Settings.Default.Save();
+                Settings.Default.IPAddress1 = "127.0.0.1";
+                txtIPAddress1.Text = Settings.Default.IPAddress1;
             }
+
+            Settings.Default.Save();
             Hide();
         }
 
@@ -239,31 +315,51 @@ namespace myseq
         private void CmdMapDirBrowse_Click(object sender, EventArgs e)
         {
             txtMapDir.Text = formMethod.FolderBrowser("Map Directory", Settings.Default.MapDir);
-            if (!string.IsNullOrEmpty(txtMapDir.Text)) Settings.Default.MapDir = txtMapDir.Text;
+            if (!string.IsNullOrEmpty(txtMapDir.Text))
+            {
+                Settings.Default.MapDir = txtMapDir.Text;
+                Settings.Default.Save();
+            }
         }
 
         private void CmdCfgDirBrowse_Click(object sender, EventArgs e)
         {
             txtCfgDir.Text = formMethod.FolderBrowser("Config Directory", Settings.Default.CfgDir);
-            if (!string.IsNullOrEmpty(txtCfgDir.Text)) Settings.Default.CfgDir = txtCfgDir.Text;
+            if (!string.IsNullOrEmpty(txtCfgDir.Text))
+            {
+                Settings.Default.CfgDir = txtCfgDir.Text;
+                Settings.Default.Save();
+            }
         }
 
         private void CmdFilterDirBrowse_Click(object sender, EventArgs e)
         {
             txtFilterDir.Text = formMethod.FolderBrowser("Filter Directory", Settings.Default.FilterDir);
-            if (!string.IsNullOrEmpty(txtFilterDir.Text)) Settings.Default.FilterDir = txtFilterDir.Text;
+            if (!string.IsNullOrEmpty(txtFilterDir.Text))
+            {
+                Settings.Default.FilterDir = txtFilterDir.Text;
+                Settings.Default.Save();
+            }
         }
 
         private void CmdLogDir_Click(object sender, EventArgs e)
         {
             txtLogDir.Text = formMethod.FolderBrowser("Log Directory", Settings.Default.LogDir);
-            if (!string.IsNullOrEmpty(txtLogDir.Text)) Settings.Default.LogDir = txtLogDir.Text;
+            if (!string.IsNullOrEmpty(txtLogDir.Text))
+            {
+                Settings.Default.LogDir = txtLogDir.Text;
+                Settings.Default.Save();
+            }
         }
 
         private void CmdSpawnTimers_Click(object sender, EventArgs e)
         {
             txtTimerDir.Text = formMethod.FolderBrowser("Timers log Directory", Settings.Default.TimerDir);
-            if (!string.IsNullOrEmpty(txtTimerDir.Text)) Settings.Default.TimerDir = txtTimerDir.Text;
+            if (!string.IsNullOrEmpty(txtTimerDir.Text))
+            {
+                Settings.Default.TimerDir = txtTimerDir.Text;
+                Settings.Default.Save();
+            }
         }
 
         private void CmdGridLabelColor_Click(object sender, EventArgs e)
@@ -306,7 +402,7 @@ namespace myseq
 
         private void SpnRangeCircle_ValueChanged(object sender, EventArgs e) => Settings.Default.RangeCircle = (int)spnRangeCircle.Value;
 
-        private void SpnUpdateDelay_ValueChanged(object sender, EventArgs e) => Settings.Default.UpdateDelay = (int)spnUpdateDelay.Value;
+        private void SpnUpdateDelay_ValueChanged(object sender, EventArgs e) => Settings.Default.UpdateDelay = Math.Max(25, (int)spnUpdateDelay.Value);
 
         private void SpnFadedLines_ValueChanged(object sender, EventArgs e) => Settings.Default.FadedLines = (int)FadedLines.Value;
 

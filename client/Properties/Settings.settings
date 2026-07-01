@@ -78,7 +78,7 @@
       <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="AlwaysOnTop" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">True</Value>
+      <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="ShowCorpses" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
@@ -141,6 +141,12 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="ShowTargetInfo" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="ShowMapLegend" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="ShowMapRail" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="SmallTargetInfo" Type="System.Boolean" Scope="User">
@@ -249,7 +255,7 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="UpdateDelay" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">200</Value>
+      <Value Profile="(Default)">50</Value>
     </Setting>
     <Setting Name="MatchFullTextH" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>

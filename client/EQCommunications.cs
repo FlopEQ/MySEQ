@@ -3,6 +3,7 @@
 using myseq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace Structures
@@ -33,6 +34,7 @@ namespace Structures
         private int numPackets; // Total Packets expected
 
         private int numProcessed; // No. of Packets already processed
+        private const int SlowPacketProcessingWarningMs = 150;
 
         private readonly byte[] incompletebuffer = new byte[2048];
 
@@ -40,6 +42,16 @@ namespace Structures
         private readonly MainForm f1;
 
         public int NewProcessID { get; set; }
+
+        public bool IsRequestPending => RequestPending;
+
+        public int PacketsExpected => numPackets;
+
+        public int PacketsProcessed => numProcessed;
+
+        public DateTime LastPacketReceivedAt { get; private set; } = DateTime.MinValue;
+
+        public DateTime LastRequestCompletedAt { get; private set; } = DateTime.MinValue;
 
         public void UpdateHidden(bool state)
         {
@@ -192,6 +204,7 @@ namespace Structures
 
         private void ProcessPacket(byte[] packet, int bytes)
         {
+            var stopwatch = Stopwatch.StartNew();
             var offset = 0;
 
             const int SIZE_OF_PACKET = 100; //104 on new server
@@ -200,6 +213,8 @@ namespace Structures
             {
                 if (bytes > 0)
                 {
+                    LastPacketReceivedAt = DateTime.Now;
+
                     // we have received some bytes, check if this is the beginning of a new packet or a chunk of an existing one.
 
                     offset = CheckStart(packet);
@@ -241,6 +256,7 @@ namespace Structures
             }
             catch (Exception ex) { LogLib.WriteLine("Error: ProcessPacket: ", ex); }
 
+            LogSlowPacketProcessing(stopwatch.ElapsedMilliseconds, bytes);
             ProcessedPackets(packet, bytes, offset);
         }
 
@@ -375,8 +391,19 @@ namespace Structures
                 // Finished proceessing the request
                 FinalizeProcess();
 
-                eq.CheckMobs(f1.SpawnList, f1.GroundItemList);
+                if (f1.ShouldRunListMaintenance())
+                {
+                    eq.CheckMobs(f1.SpawnList, f1.GroundItemList);
+                }
                 f1.MapConInvalidate();
+            }
+        }
+
+        private void LogSlowPacketProcessing(long elapsedMs, int bytes)
+        {
+            if (elapsedMs >= SlowPacketProcessingWarningMs)
+            {
+                LogLib.WriteLine($"Packet processing took {elapsedMs}ms for {bytes} bytes ({numProcessed}/{numPackets} packets).", LogLevel.Warning);
             }
         }
 
@@ -384,6 +411,7 @@ namespace Structures
         {
             RequestPending = false;
             update_hidden = false;
+            LastRequestCompletedAt = DateTime.Now;
 
             numPackets = numProcessed = 0;
 

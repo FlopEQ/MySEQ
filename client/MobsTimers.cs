@@ -275,6 +275,7 @@ namespace myseq
                         SpawnTimerList.listView.Items.Add(stItem);
                     }
                 }
+                SpawnTimerList.RefreshList();
             }
             catch (Exception ex) { LogLib.WriteLine("Error in ProcessSpawnTimer(): ", ex); }
 

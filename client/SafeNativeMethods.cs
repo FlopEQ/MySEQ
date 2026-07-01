@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+using System;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace myseq
@@ -14,5 +15,11 @@ namespace myseq
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         internal static extern long WritePrivateProfileString(string section, string key, string val, string filePath);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("winmm.dll", CharSet = CharSet.Unicode)]
+        internal static extern bool PlaySound(string sound, IntPtr module, IntPtr flags);
     }
 }

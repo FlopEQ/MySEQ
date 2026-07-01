@@ -5,6 +5,32 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
  
  
+## [Unreleased] - 2026-07-01
+
+### Added (Client)
+- Added a modern map rail with grouped NPC/player corpse toggles, target info toggle, legend toggle, follow control, grid/text toggles, and reset control.
+- Added a bottom-left map legend showing NPC, player, corpse, ground spawn, and selected marker icons.
+- Added a modern selected-info card for clicked spawns and ground spawns.
+- Added softer client connect and disconnect chimes.
+- Added persisted settings for showing the map legend and map rail.
+
+### Changed (Client)
+- Updated the client project to .NET 10 and PackageReference-based dependencies.
+- Modernized the main window, toolbar, status bar, dock theme, options/about dialogs, map controls, list panels, and marker rendering.
+- Improved map marker visibility, including corpse and ground spawn icons, selected rings, and selected-line coloring.
+- Improved spawn, player, corpse, and ground-spawn selection behavior from both the map and lists.
+- Improved map refresh responsiveness and packet polling behavior.
+- Improved list repainting and selection highlighting after sorting, resizing, and fullscreen/windowed transitions.
+- Removed the old floating map status box and obsolete quick-filter drawer.
+
+### Added (Server)
+- Added an offset diff finder workflow for comparing old/new EQ executables and offset sets.
+
+### Changed (Server)
+- Updated the server project/toolset for current Visual Studio builds.
+- Improved EQ process scanning and packet handling reliability.
+- Removed old Windows connect/disconnect beeps from the server.
+
 ## [2.5.0] - 2021-02-19
 
 ### Added (Client)

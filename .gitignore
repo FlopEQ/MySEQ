@@ -348,3 +348,4 @@ healthchecksdb
 /server/MySEQ.server.vcxproj.filters
 /server/App.ico
 /.gitignore
+/work/

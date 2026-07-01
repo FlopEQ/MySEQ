@@ -1,13 +1,19 @@
 using System;
 using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Structures
 {
     //========================================================================
     /// <summary> This class abstracts a socket </summary>
-    public class CSocketClient
+    public class CSocketClient : IDisposable
     {
         private const int cbufferSize = 1048576;
+        private readonly object connectionLock = new object();
+        private readonly SemaphoreSlim sendLock = new SemaphoreSlim(1, 1);
+        private bool closeNotified;
+        private bool disposed;
 
         // Delegate Method Types
         /// <summary> DelType: Called when a message is received </summary>
@@ -21,12 +27,6 @@ namespace Structures
 
         /// <summary> RefType: A TcpClient object for socket connection </summary>
         private TcpClient GetTcpClient { get; set; }
-
-        /// <summary> RetType: A callback object for processing recieved socket data </summary>
-        private AsyncCallback GetCallbackReadMethod { get; }
-
-        /// <summary> RetType: A callback object for processing send socket data </summary>
-        private AsyncCallback GetCallbackWriteMethod { get; }
 
         /// <summary> DelType: A reference to a user supplied function to be called when a socket message arrives </summary>
         private MESSAGE_HANDLER GetMessageHandler { get; }
@@ -56,68 +56,58 @@ namespace Structures
             // Set the handler methods
             GetMessageHandler = pfnMessageHandler;
             GetCloseHandler = pfnCloseHandler;
-
-            // Set the async socket method handlers
-
-            GetCallbackReadMethod = new AsyncCallback(ReceiveComplete);
-            GetCallbackWriteMethod = new AsyncCallback(SendComplete);
         }
 
         // Private Methods
         //********************************************************************
-        /// <summary> Called when a message arrives </summary>
-        /// <param name="ar"> RefType: An async result interface </param>
-        private void ReceiveComplete(IAsyncResult ar)
+        /// <summary> Reads messages until the connection closes. </summary>
+        private async Task ReceiveLoopAsync()
         {
             try
             {
-                // Is the Network Stream object valid
-                if (GetNetworkStream.CanRead)
+                while (GetNetworkStream?.CanRead == true)
                 {
-                    // Read the current bytes from the stream buffer
-                    var iBytesRecieved = GetNetworkStream.EndRead(ar);
+                    var bytesReceived = await GetNetworkStream.ReadAsync(GetRawBuffer, 0, GetSizeOfRawBuffer).ConfigureAwait(false);
 
-                    // If there are bytes to process else the connection is lost
-                    if (iBytesRecieved > 0)
+                    if (bytesReceived == 0)
                     {
-                        // A message came in send it to the MessageHandler
-                        try { GetMessageHandler(this, iBytesRecieved); }
-                        catch (Exception ex) { LogLib.WriteLine("Error GetMessageHandler - CSocketClient.ReceiveComplete(): ", ex); }
+                        LogLib.WriteLine("CSocketClient.ReceiveLoopAsync(): Shutting down", LogLevel.Error);
+                        break;
+                    }
 
-                        // Wait for a new message
-                        Receive();
-                    }
-                    else
-                    {
-                        LogLib.WriteLine("CSocketClient.ReceiveComplete(): Shuting Down", LogLevel.Error);
-                        throw new SocketException();
-                    }
+                    try { GetMessageHandler(this, bytesReceived); }
+                    catch (Exception ex) { LogLib.WriteLine("Error GetMessageHandler - CSocketClient.ReceiveLoopAsync(): ", ex); }
                 }
             }
-            catch (Exception)
+            catch (ObjectDisposedException)
             {
-                // The connection must have dropped call the CloseHandler
-                try { GetCloseHandler(this); }
-                catch (Exception ex) { LogLib.WriteLine("Error CSocketClient.ReceiveComplete(): ", ex); }
+                // Expected during disconnect.
+            }
+            catch (Exception ex)
+            {
+                LogLib.WriteLine("Error CSocketClient.ReceiveLoopAsync(): ", ex);
+            }
+            finally
+            {
+                NotifyClosed();
                 Disconnect();
             }
         }
 
-        //********************************************************************
-        /// <summary> Called when a message is sent </summary>
-        /// <param name="ar"> RefType: An async result interface </param>
-        private void SendComplete(IAsyncResult ar)
+        private void NotifyClosed()
         {
-            try
+            lock (connectionLock)
             {
-                // Is the Network Stream object valid
-                if (GetNetworkStream.CanWrite)
+                if (closeNotified)
                 {
-                    GetNetworkStream.EndWrite(ar);
-                    LogLib.WriteLine("CSocketClient.SendComplete(): GetNetworkStream.EndWrite()", LogLevel.Debug);
+                    return;
                 }
+
+                closeNotified = true;
             }
-            catch (Exception ex) { LogLib.WriteLine("Error CSocketClient.SendComplete(): ", ex); }
+
+            try { GetCloseHandler(this); }
+            catch (Exception ex) { LogLib.WriteLine("Error CSocketClient.NotifyClosed(): ", ex); }
         }
 
         // Public Methods
@@ -127,18 +117,27 @@ namespace Structures
         /// <param name="iPort"> SimType: The Port to connect to </param>
         public void Connect(string strIpAddress, int iPort)
         {
-            if (GetNetworkStream != null)
+            lock (connectionLock)
             {
-                return;
-            }
-            // Attempt to establish a connection
-            GetTcpClient = new TcpClient(strIpAddress, iPort);
-            GetNetworkStream = GetTcpClient.GetStream();
+                if (GetTcpClient?.Connected == true && GetNetworkStream != null)
+                {
+                    return;
+                }
 
-            // Set these socket options
-            GetTcpClient.ReceiveBufferSize = cbufferSize;
-            GetTcpClient.SendBufferSize = cbufferSize;
-            GetTcpClient.NoDelay = true;
+                Disconnect();
+
+                // Attempt to establish a connection
+                GetTcpClient = new TcpClient
+                {
+                    ReceiveBufferSize = cbufferSize,
+                    SendBufferSize = cbufferSize,
+                    NoDelay = true
+                };
+
+                GetTcpClient.Connect(strIpAddress, iPort);
+                GetNetworkStream = GetTcpClient.GetStream();
+                closeNotified = false;
+            }
 
             Receive();
         }
@@ -147,24 +146,40 @@ namespace Structures
         /// <summary> Function used to disconnect from the server </summary>
         public void Disconnect()
         {
-            // Close down the connection
-            GetNetworkStream?.Close();
-            GetTcpClient?.Close();
+            lock (connectionLock)
+            {
+                // Close down the connection
+                GetNetworkStream?.Close();
+                GetTcpClient?.Close();
+                GetNetworkStream = null;
+                GetTcpClient = null;
+            }
         }
 
         /// <summary> Function to send a raw buffer to the server </summary>
         /// <param name="pRawBuffer"> RefType: A Raw buffer of bytes to send </param>
         public void Send(byte[] pRawBuffer)
         {
-            if (GetNetworkStream?.CanWrite == true)
+            _ = SendAsync(pRawBuffer);
+        }
+
+        private async Task SendAsync(byte[] pRawBuffer)
+        {
+            await sendLock.WaitAsync().ConfigureAwait(false);
+            try
             {
-                // Issue an asynchronus write
-                GetNetworkStream.BeginWrite(pRawBuffer, 0, pRawBuffer.GetLength(0), GetCallbackWriteMethod, null);
+                if (GetNetworkStream?.CanWrite == true)
+                {
+                    await GetNetworkStream.WriteAsync(pRawBuffer, 0, pRawBuffer.Length).ConfigureAwait(false);
+                    LogLib.WriteLine("CSocketClient.SendAsync(): GetNetworkStream.WriteAsync()", LogLevel.Debug);
+                }
+                else
+                {
+                    LogLib.WriteLine("Error CSocketClient.Send(Byte[]): Socket Closed");
+                }
             }
-            else
-            {
-                LogLib.WriteLine("Error CSocketClient.Send(Byte[]): Socket Closed");
-            }
+            catch (Exception ex) { LogLib.WriteLine("Error CSocketClient.SendAsync(): ", ex); }
+            finally { sendLock.Release(); }
         }
 
         //********************************************************************
@@ -173,13 +188,24 @@ namespace Structures
         {
             if (GetNetworkStream?.CanRead == true)
             {
-                // Issue an asynchronous read
-                GetNetworkStream.BeginRead(GetRawBuffer, 0, GetSizeOfRawBuffer, GetCallbackReadMethod, null);
+                _ = ReceiveLoopAsync();
             }
             else
             {
                 LogLib.WriteLine("Error CSocketClient.Receive(): Socket Closed");
             }
+        }
+
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            Disconnect();
+            sendLock.Dispose();
         }
     }
 }

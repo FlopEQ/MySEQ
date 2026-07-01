@@ -32,7 +32,7 @@ namespace myseq
                     return titleAttribute.Title;
                 }
             }
-            return System.IO.Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().CodeBase);
+            return System.IO.Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().Location);
         }
 
         public static string AssemblyVersion => Assembly.GetExecutingAssembly().GetName().Version.ToString();
@@ -70,9 +70,9 @@ namespace myseq
         #endregion Assembly Attribute Accessors
 
         private static void DockpanelClick(object sender, LinkLabelLinkClickedEventArgs e) =>
-            Process.Start(dockpanel);
+            Process.Start(new ProcessStartInfo(dockpanel) { UseShellExecute = true });
 
         private static void ForumlinkClick(object sender, LinkLabelLinkClickedEventArgs e) =>
-            Process.Start(showeqforum);
+            Process.Start(new ProcessStartInfo(showeqforum) { UseShellExecute = true });
     }
 }
