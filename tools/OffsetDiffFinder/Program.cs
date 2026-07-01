@@ -9,10 +9,10 @@ var options = Args.Parse(args);
 if (!options.IsValid)
 {
     Console.WriteLine("""
-MySEQ Offset Diff Finder
+MySEQ Offset Finder
 
 Usage:
-  offset-diff-finder --old-exe C:\old\eqgame.exe --new-exe C:\new\eqgame.exe --old-ini C:\old\myseqserver.ini --out C:\new\myseqserver.candidates.ini --report C:\new\offset-diff-report.txt
+  offset-finder --old-exe C:\old\eqgame.exe --new-exe C:\new\eqgame.exe --old-ini C:\old\myseqserver.ini --out C:\new\myseqserver.candidates.ini --report C:\new\offset-finder-report.txt
 
 The tool compares references around known old offsets in an old executable against a new executable.
 It writes a candidate ini plus a human-readable confidence report.
@@ -132,7 +132,7 @@ static ulong ReadUnsigned(byte[] bytes, int offset, int length)
 static string BuildReport(Args options, ulong? oldImageBase, ulong? newImageBase, List<OffsetResult> results)
 {
     var sb = new StringBuilder();
-    sb.AppendLine("MySEQ Offset Diff Finder Report");
+    sb.AppendLine("MySEQ Offset Finder Report");
     sb.AppendLine("===============================");
     sb.AppendLine($"Old exe:       {options.OldExe}");
     sb.AppendLine($"New exe:       {options.NewExe}");

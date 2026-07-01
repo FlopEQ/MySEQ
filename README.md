@@ -22,7 +22,7 @@ Build only the server:
 msbuild server\MySEQ.server.vcxproj /p:Configuration=Release /p:Platform=x64
 ```
 
-Build the offset diff finder:
+Build the offset finder:
 
 ```powershell
 dotnet publish tools\OffsetDiffFinder\OffsetDiffFinder.csproj -c Release -r win-x64 --self-contained false

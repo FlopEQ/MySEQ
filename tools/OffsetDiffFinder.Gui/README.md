@@ -1,6 +1,6 @@
-# MySEQ Offset Diff Finder GUI
+# MySEQ Offset Finder GUI
 
-Windows front-end for the offset diff finder.
+Windows front-end for the offset finder.
 
 Select:
 
@@ -10,4 +10,4 @@ Select:
 - output candidate INI path
 - output report path
 
-The GUI runs `offset-diff-finder.exe` from the same folder and shows the command output in the window.
+The GUI runs `offset-finder.exe` from the same folder and shows the command output in the window.

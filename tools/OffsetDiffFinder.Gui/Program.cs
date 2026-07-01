@@ -27,7 +27,7 @@ internal sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "MySEQ Offset Diff Finder";
+        Text = "MySEQ Offset Finder";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(820, 560);
         Size = new Size(900, 640);
@@ -185,7 +185,7 @@ internal sealed class MainForm : Form
         using var dialog = new SaveFileDialog
         {
             Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
-            FileName = "offset-diff-report.txt",
+            FileName = "offset-finder-report.txt",
             Title = "Save report"
         };
         return dialog.ShowDialog() == DialogResult.OK ? dialog.FileName : null;
@@ -215,7 +215,7 @@ internal sealed class MainForm : Form
 
         if (string.IsNullOrWhiteSpace(reportBox.Text))
         {
-            reportBox.Text = Path.Combine(directory, "offset-diff-report.txt");
+            reportBox.Text = Path.Combine(directory, "offset-finder-report.txt");
         }
     }
 
@@ -226,7 +226,7 @@ internal sealed class MainForm : Form
             return;
         }
 
-        string toolPath = Path.Combine(AppContext.BaseDirectory, "offset-diff-finder.exe");
+        string toolPath = Path.Combine(AppContext.BaseDirectory, "offset-finder.exe");
         if (!File.Exists(toolPath))
         {
             MessageBox.Show(this, $"Could not find:\r\n{toolPath}", Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -237,7 +237,7 @@ internal sealed class MainForm : Form
         openOutputButton.Enabled = false;
         openReportButton.Enabled = false;
         logBox.Clear();
-        AppendLog("Running offset comparison...\r\n");
+        AppendLog("Running offset finder...\r\n");
 
         var args = new[]
         {
@@ -262,8 +262,8 @@ internal sealed class MainForm : Form
             MessageBox.Show(
                 this,
                 result.ExitCode == 0
-                    ? "Offset comparison finished."
-                    : "Offset comparison finished, but some offsets need review.",
+                    ? "Offset finder finished."
+                    : "Offset finder finished, but some offsets need review.",
                 Text,
                 MessageBoxButtons.OK,
                 result.ExitCode == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);

@@ -4,6 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>offset-diff-finder</AssemblyName>
+    <AssemblyName>offset-finder</AssemblyName>
   </PropertyGroup>
 </Project>

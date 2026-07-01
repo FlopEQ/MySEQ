@@ -918,7 +918,7 @@ void HandleCommand(HWND hDlg, WPARAM wParam) {
 		netServer.listIPAddresses();
 		break;
 
-	case IDC_BUTTON4:  // Launch offset diff finder
+	case IDC_BUTTON4:  // Launch offset finder
 		LaunchOffsetDiffFinder(h_MySEQServer);
 		break;
 
@@ -1016,27 +1016,27 @@ void LaunchOffsetDiffFinder(HWND hDlg)
 {
 	TCHAR modulePath[MAX_PATH];
 	if (!GetModuleFileName(NULL, modulePath, MAX_PATH)) {
-		MessageBox(hDlg, _T("Could not locate the server install folder."), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+		MessageBox(hDlg, _T("Could not locate the server install folder."), _T("Offset Finder"), MB_OK | MB_ICONERROR);
 		return;
 	}
 
 	TCHAR* lastSlash = _tcsrchr(modulePath, _T('\\'));
 	if (lastSlash == NULL) {
-		MessageBox(hDlg, _T("Could not locate the server install folder."), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+		MessageBox(hDlg, _T("Could not locate the server install folder."), _T("Offset Finder"), MB_OK | MB_ICONERROR);
 		return;
 	}
 
 	*lastSlash = _T('\0');
 	std::basic_string<TCHAR> installDir(modulePath);
-	std::basic_string<TCHAR> toolPath = installDir + _T("\\tools\\offset-diff-finder-gui.exe");
+	std::basic_string<TCHAR> toolPath = installDir + _T("\\tools\\offset-finder-gui.exe");
 	bool useConsoleFallback = false;
 
 	if (_taccess(toolPath.c_str(), 0) != 0) {
-		toolPath = installDir + _T("\\tools\\offset-diff-finder.exe");
+		toolPath = installDir + _T("\\tools\\offset-finder.exe");
 		useConsoleFallback = true;
 		if (_taccess(toolPath.c_str(), 0) != 0) {
-			std::basic_string<TCHAR> message = _T("Could not find:\r\n") + installDir + _T("\\tools\\offset-diff-finder-gui.exe\r\nor:\r\n") + toolPath;
-			MessageBox(hDlg, message.c_str(), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+			std::basic_string<TCHAR> message = _T("Could not find:\r\n") + installDir + _T("\\tools\\offset-finder-gui.exe\r\nor:\r\n") + toolPath;
+			MessageBox(hDlg, message.c_str(), _T("Offset Finder"), MB_OK | MB_ICONERROR);
 			return;
 		}
 	}
@@ -1051,7 +1051,7 @@ void LaunchOffsetDiffFinder(HWND hDlg)
 	}
 
 	if ((INT_PTR)result <= 32) {
-		MessageBox(hDlg, _T("Could not start the offset diff finder."), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+		MessageBox(hDlg, _T("Could not start the offset finder."), _T("Offset Finder"), MB_OK | MB_ICONERROR);
 	}
 }
 

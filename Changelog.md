@@ -24,9 +24,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Removed the old floating map status box and obsolete quick-filter drawer.
 
 ### Added (Server)
-- Added an offset diff finder workflow for comparing old/new EQ executables and offset sets.
-- Added a Windows GUI front-end for the offset diff finder and wired the server Diff Finder button to launch it.
-- Changed the main server window offset finder button to launch the new diff finder directly.
+- Added an offset finder workflow for comparing old/new EQ executables and offset sets.
+- Added a Windows GUI front-end for the offset finder and wired the server Offset Finder button to launch it.
+- Changed the main server window Offset Finder button to launch the new offset finder directly.
 
 ### Changed (Server)
 - Updated the server project/toolset for current Visual Studio builds.

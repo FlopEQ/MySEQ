@@ -1,4 +1,4 @@
-# MySEQ Offset Diff Finder
+# MySEQ Offset Finder
 
 Compares a known-good old `eqgame.exe` and `myseqserver.ini` against a newer
 `eqgame.exe`, then writes a candidate offset ini and confidence report.
@@ -6,18 +6,18 @@ Compares a known-good old `eqgame.exe` and `myseqserver.ini` against a newer
 ## Usage
 
 ```powershell
-offset-diff-finder.exe `
+offset-finder.exe `
   --old-exe "D:\EQ\old\eqgame.exe" `
   --new-exe "D:\EQ\new\eqgame.exe" `
   --old-ini "D:\MySEQ-old\myseqserver.ini" `
   --out "D:\MySEQ-new\myseqserver.candidates.ini" `
-  --report "D:\MySEQ-new\offset-diff-report.txt"
+  --report "D:\MySEQ-new\offset-finder-report.txt"
 ```
 
 Use the candidate ini as a starting point. Offsets with confidence below `80`
 should be checked with the debugger before replacing your live `myseqserver.ini`.
 
-The GUI front-end is published as `offset-diff-finder-gui.exe` and expects this
+The GUI front-end is published as `offset-finder-gui.exe` and expects this
 console tool to be in the same folder.
 
 ## How It Works

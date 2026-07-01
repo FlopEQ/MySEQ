@@ -5,6 +5,6 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>offset-diff-finder-gui</AssemblyName>
+    <AssemblyName>offset-finder-gui</AssemblyName>
   </PropertyGroup>
 </Project>
