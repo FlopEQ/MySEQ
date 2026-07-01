@@ -38,13 +38,15 @@ foreach (var entry in ini.Entries.Where(OffsetEntry.ShouldScan))
     }
 }
 
-ini.Set("File Info", "PatchDate", DateTime.Now.ToShortDateString());
+string patchDate = File.GetLastWriteTime(options.NewExe).ToShortDateString();
+ini.Set("File Info", "PatchDate", patchDate);
 ini.Set("File Info", "ClientHash", Sha1(options.NewExe));
 ini.Save(options.OutputIni);
 File.WriteAllText(options.ReportPath, BuildReport(options, oldImageBase, newImageBase, results), Encoding.UTF8);
 
 Console.WriteLine($"Wrote candidate ini: {options.OutputIni}");
 Console.WriteLine($"Wrote report:        {options.ReportPath}");
+Console.WriteLine($"Patch date:          {patchDate}");
 Console.WriteLine($"High confidence:     {results.Count(r => r.Confidence >= 80)}/{results.Count}");
 Console.WriteLine($"Needs review:        {results.Count(r => r.Confidence < 80)}/{results.Count}");
 return results.Any(r => r.CandidateValue is null) ? 1 : 0;
