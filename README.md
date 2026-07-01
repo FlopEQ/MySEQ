@@ -26,6 +26,7 @@ Build the offset diff finder:
 
 ```powershell
 dotnet publish tools\OffsetDiffFinder\OffsetDiffFinder.csproj -c Release -r win-x64 --self-contained false
+dotnet publish tools\OffsetDiffFinder.Gui\OffsetDiffFinder.Gui.csproj -c Release -r win-x64 --self-contained false
 ```
 
 The client uses `PackageReference`; `packages.config` is not used.

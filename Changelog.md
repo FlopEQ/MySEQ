@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added (Server)
 - Added an offset diff finder workflow for comparing old/new EQ executables and offset sets.
+- Added a Windows GUI front-end for the offset diff finder and wired the server Diff Finder button to launch it.
 
 ### Changed (Server)
 - Updated the server project/toolset for current Visual Studio builds.

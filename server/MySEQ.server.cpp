@@ -1028,16 +1028,28 @@ void LaunchOffsetDiffFinder(HWND hDlg)
 
 	*lastSlash = _T('\0');
 	std::basic_string<TCHAR> installDir(modulePath);
-	std::basic_string<TCHAR> toolPath = installDir + _T("\\tools\\offset-diff-finder.exe");
+	std::basic_string<TCHAR> toolPath = installDir + _T("\\tools\\offset-diff-finder-gui.exe");
+	bool useConsoleFallback = false;
 
 	if (_taccess(toolPath.c_str(), 0) != 0) {
-		std::basic_string<TCHAR> message = _T("Could not find:\r\n") + toolPath;
-		MessageBox(hDlg, message.c_str(), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
-		return;
+		toolPath = installDir + _T("\\tools\\offset-diff-finder.exe");
+		useConsoleFallback = true;
+		if (_taccess(toolPath.c_str(), 0) != 0) {
+			std::basic_string<TCHAR> message = _T("Could not find:\r\n") + installDir + _T("\\tools\\offset-diff-finder-gui.exe\r\nor:\r\n") + toolPath;
+			MessageBox(hDlg, message.c_str(), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
+			return;
+		}
 	}
 
-	std::basic_string<TCHAR> parameters = _T("/k \"\"") + toolPath + _T("\"\"");
-	HINSTANCE result = ShellExecute(hDlg, _T("open"), _T("cmd.exe"), parameters.c_str(), installDir.c_str(), SW_SHOWNORMAL);
+	HINSTANCE result;
+	if (useConsoleFallback) {
+		std::basic_string<TCHAR> parameters = _T("/k \"\"") + toolPath + _T("\"\"");
+		result = ShellExecute(hDlg, _T("open"), _T("cmd.exe"), parameters.c_str(), installDir.c_str(), SW_SHOWNORMAL);
+	}
+	else {
+		result = ShellExecute(hDlg, _T("open"), toolPath.c_str(), NULL, installDir.c_str(), SW_SHOWNORMAL);
+	}
+
 	if ((INT_PTR)result <= 32) {
 		MessageBox(hDlg, _T("Could not start the offset diff finder."), _T("Offset Diff Finder"), MB_OK | MB_ICONERROR);
 	}

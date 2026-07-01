@@ -17,6 +17,9 @@ offset-diff-finder.exe `
 Use the candidate ini as a starting point. Offsets with confidence below `80`
 should be checked with the debugger before replacing your live `myseqserver.ini`.
 
+The GUI front-end is published as `offset-diff-finder-gui.exe` and expects this
+console tool to be in the same folder.
+
 ## How It Works
 
 - Reads old offset values from `[Memory Offsets]` and `* Offsets` sections.
@@ -26,4 +29,3 @@ should be checked with the debugger before replacing your live `myseqserver.ini`
 - Finds the same context in the new executable and extracts the new value.
 - Reconstructs full `0x140...` primary addresses when the executable stores only
   the low 32 bits.
-
