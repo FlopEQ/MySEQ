@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Updated the client project to .NET 10 and PackageReference-based dependencies.
 - Modernized the main window, toolbar, status bar, dock theme, options/about dialogs, map controls, list panels, and marker rendering.
 - Improved map marker visibility, including corpse and ground spawn icons, selected rings, and selected-line coloring.
+- Changed mob search pulse rings to bright red for better map visibility.
 - Improved spawn, player, corpse, and ground-spawn selection behavior from both the map and lists.
 - Improved map refresh responsiveness and packet polling behavior.
 - Improved list repainting and selection highlighting after sorting, resizing, and fullscreen/windowed transitions.

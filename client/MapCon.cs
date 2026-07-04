@@ -132,6 +132,7 @@ namespace myseq
         private readonly Pen YellowPen = new Pen(new SolidBrush(Color.Yellow));
         private readonly Pen PurplePen = new Pen(new SolidBrush(Color.Purple));
         private readonly Pen PinkPen = new Pen(new SolidBrush(Color.Fuchsia));
+        private readonly Pen LookupPen = new Pen(Color.Red, 2.4f);
         private readonly Pen SelectionPen = new Pen(ModernTheme.AccentWarm, 2.4f);
         private readonly Pen PCBorder = new Pen(new SolidBrush(Settings.Default.PCBorderColor));
 
@@ -2891,7 +2892,7 @@ namespace myseq
             }
 
             float lookupRingSize = SpawnPlusSize + (skittle / (float)UpdateSteps * SelectSize);
-            DrawEllipse(WhitePen, x - lookupRingSize / 2.0f, y - lookupRingSize / 2.0f, lookupRingSize, lookupRingSize);
+            DrawEllipse(LookupPen, x - lookupRingSize / 2.0f, y - lookupRingSize / 2.0f, lookupRingSize, lookupRingSize);
 
             if (Settings.Default.ShowLookupText)
             {
