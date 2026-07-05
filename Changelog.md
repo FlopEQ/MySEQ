@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Modernized the main window, toolbar, status bar, dock theme, options/about dialogs, map controls, list panels, and marker rendering.
 - Improved map marker visibility, including corpse and ground spawn icons, selected rings, and selected-line coloring.
 - Changed mob search pulse rings to bright red for better map visibility.
+- Added clearer EQ process switching by listing available eqgame instances with character, zone, and PID.
 - Improved spawn, player, corpse, and ground-spawn selection behavior from both the map and lists.
 - Improved map refresh responsiveness and packet polling behavior.
 - Improved list repainting and selection highlighting after sorting, resizing, and fullscreen/windowed transitions.

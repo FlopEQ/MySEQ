@@ -116,7 +116,7 @@ public:
 
 	void handleSelfRequest(MemReaderInterface* mr_intf);
 
-	void handleGetProcRequest();
+	void handleGetProcRequest(MemReaderInterface* mr_intf);
 
 	bool handleProcessChange(MemReaderInterface* mr_intf);
 

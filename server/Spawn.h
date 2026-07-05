@@ -113,6 +113,8 @@ public:
 
 	void packNetBufferRaw(UINT flags, QWORD _this);
 
+	void packNetBufferProcess(UINT flags, QWORD pid, const string& zoneName, bool activeProcess);
+
 	void packNetBufferEmpty(UINT flags, QWORD _this);
 
 	/* when you are done filling out a NetBuffer, push it for shipping across the network */

@@ -467,7 +467,7 @@ bool NetworkServer::switchToProcess(MemReaderInterface* mr_intf, DWORD clientReq
 void NetworkServer::handleRequests(MemReaderInterface* mr_intf)
 {
 	if (requestContains(IPT_getproc))
-		handleGetProcRequest();
+		handleGetProcRequest(mr_intf);
 	if (requestContains(IPT_setproc))
 		handleSetProcRequest();
 	if (requestContains(IPT_zone))
@@ -491,10 +491,11 @@ bool NetworkServer::handleSetProcRequest()
 	// client does not expect a return packet now
 }
 
-void NetworkServer::handleGetProcRequest()
+void NetworkServer::handleGetProcRequest(MemReaderInterface* mr_intf)
 {
 	QWORD pTemp = 0;
 	MemReader tempMemReader;
+	DWORD activePID = mr_intf->getCurrentPID();
 
 	// Look for the first available process match
 	tempMemReader.openFirstProcess("eqgame");
@@ -505,8 +506,18 @@ void NetworkServer::handleGetProcRequest()
 
 		if (pTemp && tempMemReader.extractToBuffer(pTemp, spawnParser.rawBuffer, spawnParser.largestOffset))
 		{
-			// For this type of packet, we only use the gamer name and the PID
-			spawnParser.packNetBufferRaw(OPT_process, tempMemReader.getCurrentPID());
+			std::string processZoneName;
+			if (offsets[OT_zonename])
+			{
+				QWORD zoneAddress = offsets[OT_zonename] - 0x140000000 + tempMemReader.getCurrentBaseAddress();
+				processZoneName = tempMemReader.extractString2(zoneAddress);
+			}
+
+			spawnParser.packNetBufferProcess(
+				OPT_process,
+				tempMemReader.getCurrentPID(),
+				processZoneName,
+				tempMemReader.getCurrentPID() == activePID);
 			spawnParser.pushNetBuffer();
 		}
 

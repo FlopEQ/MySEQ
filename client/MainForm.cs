@@ -290,31 +290,11 @@ namespace myseq
 
         public void SetCharSelection(string player_name)
         {
-            mnuChar1.Checked = player_name == mnuChar1.Text;
-
-            mnuChar2.Checked = player_name == mnuChar2.Text;
-
-            mnuChar3.Checked = player_name == mnuChar3.Text;
-
-            mnuChar4.Checked = player_name == mnuChar4.Text;
-
-            mnuChar5.Checked = player_name == mnuChar5.Text;
-
-            mnuChar6.Checked = player_name == mnuChar6.Text;
-
-            mnuChar7.Checked = player_name == mnuChar7.Text;
-
-            mnuChar8.Checked = player_name == mnuChar8.Text;
-
-            mnuChar9.Checked = player_name == mnuChar9.Text;
-
-            mnuChar10.Checked = player_name == mnuChar10.Text;
-
-            mnuChar10.Checked = player_name == mnuChar10.Text;
-
-            mnuChar11.Checked = player_name == mnuChar11.Text;
-
-            mnuChar12.Checked = player_name == mnuChar12.Text;
+            foreach (var item in GetCharacterMenuItems())
+            {
+                item.Checked = item.Text.StartsWith(player_name + " - ", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(player_name, item.Text, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         public void SetTitle()
@@ -878,54 +858,43 @@ namespace myseq
 
         public void ShowCharsInList(Spawninfo si, ProcessInfo PI)
         {
-            var equalProcessID = (comm.CurrentProcess != null) && (comm.CurrentProcess.ProcessID == PI.ProcessID);
+            RefreshCharacterMenu();
+        }
 
-            // Array of menu items for easy access
-            var menuItems = new[]
+        private ToolStripMenuItem[] GetCharacterMenuItems()
+        {
+            return new[]
             {
                 mnuChar1, mnuChar2, mnuChar3, mnuChar4, mnuChar5,
                 mnuChar6, mnuChar7, mnuChar8, mnuChar9, mnuChar10,
                 mnuChar11, mnuChar12
             };
-
-            // Set the number of collected processes
-            int count = comm.ColProcesses.Count;
-
-            // Ensure we do not go out of bounds
-            if (count > 12) count = 12;
-
-            // Loop through menu items based on the number of collected processes
-            for (int i = 0; i < count; i++)
-            {
-                var currentItem = menuItems[i];
-                var nextItem = i + 1 < menuItems.Length ? menuItems[i + 1] : null;
-                var charLabel = $"Char {i + 2}";
-
-                ShowCharInList(si, currentItem, nextItem, charLabel, equalProcessID);
-            }
-
-            // Special case for the 12th character, which does not have a "next" item
-            if (count == 12)
-            {
-                menuItems[11].Text = si.Name;
-                menuItems[11].Visible = true;
-                menuItems[11].Checked = equalProcessID;
-            }
         }
 
-        private void ShowCharInList(Spawninfo si, ToolStripMenuItem charThis, ToolStripMenuItem charNext, string charLabel, bool equalProcessID)
+        private void RefreshCharacterMenu()
         {
-            charThis.Text = si.Name;
-            charThis.Visible = true;
+            var menuItems = GetCharacterMenuItems();
+            int count = Math.Min(comm.ColProcesses.Count, menuItems.Length);
 
-            if (charNext != null)
+            for (int i = 0; i < menuItems.Length; i++)
             {
-                charNext.Visible = false;
-                charNext.Text = charLabel;
-                charNext.Checked = false;
+                if (i >= count)
+                {
+                    menuItems[i].Text = $"Char {i + 1}";
+                    menuItems[i].Visible = false;
+                    menuItems[i].Checked = false;
+                    continue;
+                }
+
+                var process = comm.ColProcesses[i];
+                menuItems[i].Text = process.DisplayName;
+                menuItems[i].Visible = true;
+                menuItems[i].Checked = process.IsCurrent
+                    || (comm.CurrentProcess != null && comm.CurrentProcess.ProcessID == process.ProcessID);
+                menuItems[i].Enabled = comm.CanSwitchChars() || menuItems[i].Checked;
             }
 
-            charThis.Checked = equalProcessID;
+            mnuCharRefresh.Visible = true;
         }
 
         #region ProccessMap
@@ -2983,54 +2952,7 @@ namespace myseq
         // Update the Character Selection list
         private void VisChar()
         {
-            mnuChar1.Visible = false;
-
-            mnuChar1.Text = "Char 1";
-
-            mnuChar2.Visible = false;
-
-            mnuChar2.Text = "Char 2";
-
-            mnuChar3.Visible = false;
-
-            mnuChar3.Text = "Char 3";
-
-            mnuChar4.Visible = false;
-
-            mnuChar4.Text = "Char 4";
-
-            mnuChar5.Visible = false;
-
-            mnuChar5.Text = "Char 5";
-
-            mnuChar6.Visible = false;
-
-            mnuChar6.Text = "Char 6";
-
-            mnuChar7.Visible = false;
-
-            mnuChar7.Text = "Char 7";
-
-            mnuChar8.Visible = false;
-
-            mnuChar8.Text = "Char 8";
-
-            mnuChar9.Visible = false;
-
-            mnuChar9.Text = "Char 9";
-
-            mnuChar10.Visible = false;
-
-            mnuChar10.Text = "Char 10";
-
-            mnuChar11.Visible = false;
-
-            mnuChar11.Text = "Char 11";
-
-            mnuChar12.Visible = false;
-
-            mnuChar12.Text = "Char 12";
-
+            RefreshCharacterMenu();
             comm.CharRefresh();
         }
 

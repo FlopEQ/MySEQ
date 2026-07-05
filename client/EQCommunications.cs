@@ -352,7 +352,7 @@ namespace Structures
 
         private void ProcessProcessInfo(Spawninfo si)
         {
-            ProcessInfo ProcInfo = new ProcessInfo(si.SpawnID, si.Name);
+            ProcessInfo ProcInfo = new ProcessInfo(si.SpawnID, si.Name, si.Lastname, si.Type == 1);
 
             if (si.SpawnID == 0)
             {
@@ -369,6 +369,11 @@ namespace Structures
                 }
 
                 ColProcesses.Add(ProcInfo);
+
+                if (ProcInfo.IsCurrent)
+                {
+                    CurrentProcess = ProcInfo;
+                }
 
                 f1.ShowCharsInList(si, ProcInfo);
             }

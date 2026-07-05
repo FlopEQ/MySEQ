@@ -129,6 +129,15 @@ void Spawn::packNetBufferRaw(UINT flags, QWORD _this)
 	tempNetBuffer.hidden = extractRawByte(OT_hidden);
 }
 
+void Spawn::packNetBufferProcess(UINT flags, QWORD pid, const string& zoneName, bool activeProcess)
+{
+	packNetBufferRaw(flags, pid);
+	tempNetBuffer.id = (UINT)pid;
+	memset(tempNetBuffer.lastName, 0, 22);
+	zoneName._Copy_s(tempNetBuffer.lastName, 22, 22);
+	tempNetBuffer.type = activeProcess ? 1 : 0;
+}
+
 void Spawn::packNetBufferEmpty(UINT flags, QWORD _this)
 {
 	packNetBufferStrings(flags, "", "");
