@@ -65,50 +65,51 @@ END
 // Dialog
 //
 
-IDD_SERVERBOX DIALOGEX 0, 0, 203, 140
-STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
-FONT 10, "Arial", 400, 0, 0x0
+IDD_SERVERBOX DIALOGEX 0, 0, 284, 196
+STYLE DS_SETFONT | DS_MODALFRAME | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "MySEQ Server"
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
-GROUPBOX        "MySEQ Server", IDC_STATIC, 20, 3, 164, 53
-LTEXT           "Status:", IDC_STATIC, 24, 12, 24, 8, SS_NOPREFIX
-LTEXT           "Starting", IDC_TEXT_STATUS, 66, 12, 68, 8
-LTEXT           "Patch:", IDC_STATIC, 24, 20, 22, 8
-LTEXT           "Zone:", IDC_STATIC, 24, 28, 20, 8
-LTEXT           "Not Loaded", IDC_TEXT_PATCH, 66, 20, 108, 8
-LTEXT           "StartUp", IDC_TEXT_ZONE, 66, 28, 108, 8
-LTEXT           "5555", IDC_TEXT_PORT, 158, 14, 22, 8
-LTEXT           "Port:", IDC_STATIC, 138, 14, 17, 8
-LTEXT           "Character:", IDC_STATIC, 24, 36, 35, 8
-LTEXT           "Name", IDC_TEXT_NAME, 66, 36, 95, 8
-GROUPBOX        "Primary Offsets", IDC_STATIC, 20, 57, 102, 60
-LTEXT           "ZoneAddr", IDC_STATIC, 24, 66, 32, 8
-LTEXT           "TargetAddr", IDC_STATIC, 24, 74, 37, 8
-LTEXT           "SpawnHeader", IDC_STATIC, 24, 82, 47, 8
-LTEXT           "CharInfo", IDC_STATIC, 24, 90, 28, 8
-LTEXT           "ItemsAddr", IDC_STATIC, 24, 98, 35, 8
-LTEXT           "WorldAddr", IDC_STATIC, 24, 106, 36, 8
-LTEXT           "0x000000000", IDC_TEXT_ZONEADDR, 74, 66, 47, 8
-LTEXT           "0x000000000", IDC_TEXT_TARGETADDR, 74, 74, 46, 8
-LTEXT           "0x000000000", IDC_TEXT_SPAWNHEADER, 74, 82, 47, 8
-LTEXT           "0x000000000", IDC_TEXT_CHARINFO, 74, 90, 46, 8
-LTEXT           "0x000000000", IDC_ITEMSADDR, 74, 98, 47, 8
-LTEXT           "0x000000000", IDC_TEXT_WORLDADDR, 74, 106, 46, 8
-LTEXT           "Ground", IDC_STATIC, 130, 93, 25, 8
-RTEXT           "0", IDC_TEXT_ITEMS, 155, 93, 20, 8
-GROUPBOX        "Spawns", IDC_STATIC, 126, 57, 58, 46
-LTEXT           "NPC", IDC_STATIC, 130, 66, 16, 8
-LTEXT           "PC", IDC_STATIC, 130, 75, 11, 8
-LTEXT           "Corpse", IDC_STATIC, 130, 84, 24, 8
-RTEXT           "0", IDC_TEXT_SPAWNS, 155, 66, 20, 8
-RTEXT           "0", IDC_TEXT_SPAWNS2, 155, 75, 20, 8
-RTEXT           "0", IDC_TEXT_SPAWNS3, 155, 84, 20, 8
-DEFPUSHBUTTON   "Exit", IDCLOSE, 140, 119, 43, 14
-PUSHBUTTON      "Edit Offsets", IDC_BUTTON1, 21, 119, 50, 14
-PUSHBUTTON      "Reload", IDC_BUTTON2, 80, 119, 50, 14
-PUSHBUTTON      "List", IDC_BUTTON3, 145, 43, 36, 10
-LTEXT           "IP Address:", IDC_STATIC, 24, 44, 43, 8
-LTEXT           "127.0.0.1", IDC_TEXT_PRIMARY, 65, 44, 55, 8
-PUSHBUTTON      "Offset Finder", IDC_BUTTON4, 126, 103, 57, 13
+GROUPBOX        "Connection", IDC_STATIC, 8, 6, 268, 64
+LTEXT           "Status", IDC_STATIC, 18, 20, 34, 8, SS_NOPREFIX
+LTEXT           "Starting", IDC_TEXT_STATUS, 72, 20, 118, 8
+LTEXT           "Port", IDC_STATIC, 206, 20, 20, 8
+RTEXT           "5555", IDC_TEXT_PORT, 232, 20, 32, 8
+LTEXT           "Patch", IDC_STATIC, 18, 32, 34, 8
+LTEXT           "Not Loaded", IDC_TEXT_PATCH, 72, 32, 192, 8
+LTEXT           "Character", IDC_STATIC, 18, 44, 42, 8
+LTEXT           "Name", IDC_TEXT_NAME, 72, 44, 192, 8
+LTEXT           "Zone", IDC_STATIC, 18, 56, 34, 8
+LTEXT           "StartUp", IDC_TEXT_ZONE, 72, 56, 118, 8
+LTEXT           "IP Address", IDC_STATIC, 166, 56, 43, 8
+LTEXT           "127.0.0.1", IDC_TEXT_PRIMARY, 212, 56, 52, 8
+PUSHBUTTON      "List IPs", IDC_BUTTON3, 206, 42, 58, 12
+GROUPBOX        "Primary Offsets", IDC_STATIC, 8, 76, 170, 82
+LTEXT           "ZoneAddr", IDC_STATIC, 18, 92, 54, 8
+LTEXT           "TargetAddr", IDC_STATIC, 18, 104, 54, 8
+LTEXT           "SpawnHeader", IDC_STATIC, 18, 116, 54, 8
+LTEXT           "CharInfo", IDC_STATIC, 18, 128, 54, 8
+LTEXT           "ItemsAddr", IDC_STATIC, 18, 140, 54, 8
+LTEXT           "WorldAddr", IDC_STATIC, 18, 152, 54, 8
+LTEXT           "0x000000000", IDC_TEXT_ZONEADDR, 84, 92, 82, 8
+LTEXT           "0x000000000", IDC_TEXT_TARGETADDR, 84, 104, 82, 8
+LTEXT           "0x000000000", IDC_TEXT_SPAWNHEADER, 84, 116, 82, 8
+LTEXT           "0x000000000", IDC_TEXT_CHARINFO, 84, 128, 82, 8
+LTEXT           "0x000000000", IDC_ITEMSADDR, 84, 140, 82, 8
+LTEXT           "0x000000000", IDC_TEXT_WORLDADDR, 84, 152, 82, 8
+GROUPBOX        "Live Counts", IDC_STATIC, 186, 76, 90, 82
+LTEXT           "NPC", IDC_STATIC, 198, 94, 38, 8
+RTEXT           "0", IDC_TEXT_SPAWNS, 238, 94, 24, 8
+LTEXT           "PC", IDC_STATIC, 198, 108, 38, 8
+RTEXT           "0", IDC_TEXT_SPAWNS2, 238, 108, 24, 8
+LTEXT           "Corpse", IDC_STATIC, 198, 122, 38, 8
+RTEXT           "0", IDC_TEXT_SPAWNS3, 238, 122, 24, 8
+LTEXT           "Ground", IDC_STATIC, 198, 136, 38, 8
+RTEXT           "0", IDC_TEXT_ITEMS, 238, 136, 24, 8
+PUSHBUTTON      "Edit Offsets", IDC_BUTTON1, 8, 170, 58, 16
+PUSHBUTTON      "Reload", IDC_BUTTON2, 72, 170, 48, 16
+PUSHBUTTON      "Offset Finder", IDC_BUTTON4, 126, 170, 72, 16
+DEFPUSHBUTTON   "Exit", IDCLOSE, 228, 170, 48, 16
 END
 
 IDD_EQOFFSETSFINDER DIALOGEX 0, 0, 386, 198

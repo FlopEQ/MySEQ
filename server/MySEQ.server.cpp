@@ -53,8 +53,15 @@ LPCTSTR lpszServiceNameDisplay = "MySEQ Open";
 SERVICE_STATUS m_ServiceStatus;
 SERVICE_STATUS_HANDLE m_ServiceStatusHandle;
 
-// background color
-HBRUSH g_hbrBackground = GetSysColorBrush(COLOR_MENU);
+// Main dialog colors
+constexpr COLORREF ServerBackColor = RGB(31, 36, 43);
+constexpr COLORREF ServerLabelColor = RGB(185, 196, 210);
+constexpr COLORREF ServerValueColor = RGB(232, 238, 244);
+constexpr COLORREF ServerAccentColor = RGB(74, 166, 188);
+constexpr COLORREF ServerWarningColor = RGB(255, 112, 112);
+constexpr COLORREF ServerListeningColor = RGB(118, 195, 255);
+constexpr COLORREF ServerConnectedColor = RGB(88, 214, 141);
+HBRUSH g_hbrBackground = CreateSolidBrush(ServerBackColor);
 bool bRunning;
 
 // Global Variables:
@@ -96,6 +103,7 @@ void GetPatchdate();
 BOOL WINAPI CtrlHandler(DWORD dwCtrlType);
 
 void DoDebugLoop(void* dummy);
+bool IsServerValueControl(int controlId);
 
 // Services Functions
 void WINAPI ServiceMain(DWORD argc, LPTSTR* argv);
@@ -866,20 +874,44 @@ INT_PTR CALLBACK ServerDialog(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 // Handle WM_CTLCOLORSTATIC
 void HandleColorStatic(HWND hDlg, WPARAM wParam, LPARAM lParam) {
 	HDC hdcStatic = (HDC)wParam;
-	switch (GetDlgCtrlID((HWND)lParam)) {
+	int controlId = GetDlgCtrlID((HWND)lParam);
+	switch (controlId) {
 	case IDC_TEXT_STATUS:
 		if (server_status == 0)  // Starting Up - Red
-			SetTextColor(hdcStatic, RGB(255, 0, 0));
+			SetTextColor(hdcStatic, ServerWarningColor);
 		else if (server_status == 1)  // Listening - Blue or Connected with no eqgame.exe found
-			SetTextColor(hdcStatic, RGB(0, 0, 255));
+			SetTextColor(hdcStatic, ServerListeningColor);
 		else  // Connected with EQGame - Green
-			SetTextColor(hdcStatic, RGB(0, 255, 0));
+			SetTextColor(hdcStatic, ServerConnectedColor);
 		break;
 	default:
-		SetTextColor(hdcStatic, GetSysColor(COLOR_MENUTEXT));
+		SetTextColor(hdcStatic, IsServerValueControl(controlId) ? ServerValueColor : ServerLabelColor);
 		break;
 	}
 	SetBkMode(hdcStatic, TRANSPARENT);
+}
+
+bool IsServerValueControl(int controlId) {
+	switch (controlId) {
+	case IDC_TEXT_ZONE:
+	case IDC_TEXT_PATCH:
+	case IDC_TEXT_PORT:
+	case IDC_TEXT_NAME:
+	case IDC_TEXT_ZONEADDR:
+	case IDC_TEXT_TARGETADDR:
+	case IDC_TEXT_SPAWNHEADER:
+	case IDC_TEXT_CHARINFO:
+	case IDC_ITEMSADDR:
+	case IDC_TEXT_WORLDADDR:
+	case IDC_TEXT_SPAWNS:
+	case IDC_TEXT_SPAWNS2:
+	case IDC_TEXT_SPAWNS3:
+	case IDC_TEXT_ITEMS:
+	case IDC_TEXT_PRIMARY:
+		return true;
+	default:
+		return false;
+	}
 }
 
 // Handle WM_COMMAND

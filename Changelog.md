@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed (Server)
 - Updated the server project/toolset for current Visual Studio builds.
+- Modernized the main server window layout, typography, and color styling.
 - Improved EQ process scanning and packet handling reliability.
 - Removed old Windows connect/disconnect beeps from the server.
 
