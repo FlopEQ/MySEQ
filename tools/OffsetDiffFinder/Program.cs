@@ -389,7 +389,7 @@ sealed class IniDocument
     public void Save(string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        File.WriteAllLines(path, lines, Encoding.UTF8);
+        File.WriteAllLines(path, lines, new UTF8Encoding(false));
     }
 
     private static bool TryParseNumber(string text, out ulong value)

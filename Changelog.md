@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Changed generated offset candidate INI files to set PatchDate from the selected new eqgame.exe file date.
 - Improved Offset Finder primary memory-offset matching by translating section-relative globals when addresses are not directly referenced.
 - Improved Offset Finder reports with PE section-shift details, translated-offset counts, and warning exit codes for low-confidence offsets.
+- Fixed Offset Finder candidate INI output to write without a UTF-8 BOM so the server can read `[File Info]` correctly.
+- Made the server tolerate UTF-8 BOM-prefixed INI files when reading PatchDate.
 - Updated bundled server offsets for the June 24, 2026 eqgame.exe update.
 
 ### Changed (Server)

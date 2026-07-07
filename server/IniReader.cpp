@@ -37,6 +37,9 @@ std::string IniReader::GetPatchDate() const {
 void IniReader::openFile(const std::string& _filename) {
     filename = _filename;
     patchDate = readStringEntry("File Info", "PatchDate");
+    if (patchDate.empty()) {
+        patchDate = readStringEntry("\xEF\xBB\xBF" "File Info", "PatchDate");
+    }
 
     if (patchDate.empty()) {
         MessageBox(NULL, "Error: Invalid INI file", "Error Loading INI file", 0);
