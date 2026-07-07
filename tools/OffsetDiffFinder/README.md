@@ -29,3 +29,7 @@ console tool to be in the same folder.
 - Finds the same context in the new executable and extracts the new value.
 - Reconstructs full `0x140...` primary addresses when the executable stores only
   the low 32 bits.
+- For primary memory globals that are not directly referenced in code, translates
+  the old address by matching the old/new PE section layout and preserving the
+  same offset within the section.
+- Returns a warning exit code when any offset is missing or below confidence `80`.

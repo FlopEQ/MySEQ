@@ -44,14 +44,15 @@ string patchDate = File.GetLastWriteTime(options.NewExe).ToShortDateString();
 ini.Set("File Info", "PatchDate", patchDate);
 ini.Set("File Info", "ClientHash", Sha1(options.NewExe));
 ini.Save(options.OutputIni);
-File.WriteAllText(options.ReportPath, BuildReport(options, oldImageBase, newImageBase, results), Encoding.UTF8);
+File.WriteAllText(options.ReportPath, BuildReport(options, oldImageBase, newImageBase, oldSections, newSections, results), Encoding.UTF8);
 
 Console.WriteLine($"Wrote candidate ini: {options.OutputIni}");
 Console.WriteLine($"Wrote report:        {options.ReportPath}");
 Console.WriteLine($"Patch date:          {patchDate}");
 Console.WriteLine($"High confidence:     {results.Count(r => r.Confidence >= 80)}/{results.Count}");
 Console.WriteLine($"Needs review:        {results.Count(r => r.Confidence < 80)}/{results.Count}");
-return results.Any(r => r.CandidateValue is null) ? 1 : 0;
+Console.WriteLine($"Section translated:  {results.Count(r => r.Encoding == OffsetResult.SectionTranslationEncoding)}/{results.Count}");
+return results.Any(r => r.CandidateValue is null || r.Confidence < 80) ? 1 : 0;
 
 OffsetResult FindOffset(
     OffsetEntry entry,
@@ -104,7 +105,7 @@ OffsetResult FindOffset(
     {
         if (TryTranslateBySection(entry, oldImageBase, newImageBase, oldSections, newSections, out ulong translatedValue, out string sectionName))
         {
-            return new OffsetResult(entry, translatedValue, 82, null, null, "section-relative RVA", $"translated within {sectionName}; old value was not directly referenced");
+            return new OffsetResult(entry, translatedValue, 82, null, null, OffsetResult.SectionTranslationEncoding, $"translated within {sectionName}; old value was not directly referenced");
         }
 
         return new OffsetResult(entry, null, 25, best.OldReference, null, best.Encoding.Description, $"no unique match; closest new match count={best.MatchCount}");
@@ -112,7 +113,7 @@ OffsetResult FindOffset(
 
     if (TryTranslateBySection(entry, oldImageBase, newImageBase, oldSections, newSections, out ulong fallbackValue, out string fallbackSectionName))
     {
-        return new OffsetResult(entry, fallbackValue, 82, null, null, "section-relative RVA", $"translated within {fallbackSectionName}; old value was not directly referenced");
+        return new OffsetResult(entry, fallbackValue, 82, null, null, OffsetResult.SectionTranslationEncoding, $"translated within {fallbackSectionName}; old value was not directly referenced");
     }
 
     return new OffsetResult(entry, null, 0, null, null, "", "old value was not referenced in old executable");
@@ -197,7 +198,13 @@ static ulong ReadUnsigned(byte[] bytes, int offset, int length)
     };
 }
 
-static string BuildReport(Args options, ulong? oldImageBase, ulong? newImageBase, List<OffsetResult> results)
+static string BuildReport(
+    Args options,
+    ulong? oldImageBase,
+    ulong? newImageBase,
+    IReadOnlyList<PeSection> oldSections,
+    IReadOnlyList<PeSection> newSections,
+    List<OffsetResult> results)
 {
     var sb = new StringBuilder();
     sb.AppendLine("MySEQ Offset Finder Report");
@@ -208,8 +215,11 @@ static string BuildReport(Args options, ulong? oldImageBase, ulong? newImageBase
     sb.AppendLine($"Candidate ini: {options.OutputIni}");
     sb.AppendLine($"Old imagebase: {(oldImageBase.HasValue ? Hex(oldImageBase.Value) : "unknown")}");
     sb.AppendLine($"New imagebase: {(newImageBase.HasValue ? Hex(newImageBase.Value) : "unknown")}");
+    AppendSectionShiftSummary(sb, oldSections, newSections);
     sb.AppendLine();
     sb.AppendLine("Confidence guide: 80+ is likely usable; below 80 should be checked in the debugger.");
+    sb.AppendLine("Primary globals may use section-relative translation when the old address is not directly referenced in code.");
+    sb.AppendLine($"Section-translated offsets: {results.Count(r => r.Encoding == OffsetResult.SectionTranslationEncoding)}");
     sb.AppendLine();
 
     foreach (var group in results.GroupBy(r => r.Entry.Section))
@@ -227,6 +237,26 @@ static string BuildReport(Args options, ulong? oldImageBase, ulong? newImageBase
     }
 
     return sb.ToString();
+}
+
+static void AppendSectionShiftSummary(StringBuilder sb, IReadOnlyList<PeSection> oldSections, IReadOnlyList<PeSection> newSections)
+{
+    var shifts = oldSections
+        .Select(oldSection => (Old: oldSection, New: newSections.FirstOrDefault(newSection => newSection.Name.Equals(oldSection.Name, StringComparison.OrdinalIgnoreCase))))
+        .Where(pair => pair.New != null && pair.Old.VirtualAddress != pair.New.VirtualAddress)
+        .ToList();
+
+    if (shifts.Count == 0)
+    {
+        return;
+    }
+
+    sb.AppendLine("PE section shifts:");
+    foreach (var (oldSection, newSection) in shifts)
+    {
+        long delta = (long)newSection!.VirtualAddress - (long)oldSection.VirtualAddress;
+        sb.AppendLine($"  {oldSection.Name,-8} old={Hex(oldSection.VirtualAddress),-10} new={Hex(newSection.VirtualAddress),-10} delta={(delta >= 0 ? "+" : "-")}0x{Math.Abs(delta):x}");
+    }
 }
 
 static string Hex(ulong value) => $"0x{value:x}";
@@ -582,4 +612,7 @@ sealed record OffsetResult(
     int? OldReference,
     int? NewReference,
     string Encoding,
-    string Note);
+    string Note)
+{
+    public const string SectionTranslationEncoding = "section-relative RVA";
+}
