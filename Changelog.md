@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Added a Windows GUI front-end for the offset finder and wired the server Offset Finder button to launch it.
 - Changed the main server window Offset Finder button to launch the new offset finder directly.
 - Changed generated offset candidate INI files to set PatchDate from the selected new eqgame.exe file date.
+- Improved Offset Finder primary memory-offset matching by translating section-relative globals when addresses are not directly referenced.
+- Updated bundled server offsets for the June 24, 2026 eqgame.exe update.
 
 ### Changed (Server)
 - Updated the server project/toolset for current Visual Studio builds.

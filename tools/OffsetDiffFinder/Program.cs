@@ -24,12 +24,14 @@ byte[] oldBytes = File.ReadAllBytes(options.OldExe);
 byte[] newBytes = File.ReadAllBytes(options.NewExe);
 var oldImageBase = PeInfo.TryReadImageBase(oldBytes);
 var newImageBase = PeInfo.TryReadImageBase(newBytes);
+var oldSections = PeInfo.TryReadSections(oldBytes);
+var newSections = PeInfo.TryReadSections(newBytes);
 var ini = IniDocument.Load(options.OldIni);
 
 var results = new List<OffsetResult>();
 foreach (var entry in ini.Entries.Where(OffsetEntry.ShouldScan))
 {
-    var result = FindOffset(entry, oldBytes, newBytes, oldImageBase, newImageBase, radii);
+    var result = FindOffset(entry, oldBytes, newBytes, oldImageBase, newImageBase, oldSections, newSections, radii);
     results.Add(result);
 
     if (result.CandidateValue.HasValue)
@@ -51,7 +53,15 @@ Console.WriteLine($"High confidence:     {results.Count(r => r.Confidence >= 80)
 Console.WriteLine($"Needs review:        {results.Count(r => r.Confidence < 80)}/{results.Count}");
 return results.Any(r => r.CandidateValue is null) ? 1 : 0;
 
-OffsetResult FindOffset(OffsetEntry entry, byte[] oldBytes, byte[] newBytes, ulong? oldImageBase, ulong? newImageBase, int[] radii)
+OffsetResult FindOffset(
+    OffsetEntry entry,
+    byte[] oldBytes,
+    byte[] newBytes,
+    ulong? oldImageBase,
+    ulong? newImageBase,
+    IReadOnlyList<PeSection> oldSections,
+    IReadOnlyList<PeSection> newSections,
+    int[] radii)
 {
     var encodings = OffsetEncoding.Create(entry, oldImageBase);
     var attempts = new List<MatchAttempt>();
@@ -92,10 +102,66 @@ OffsetResult FindOffset(OffsetEntry entry, byte[] oldBytes, byte[] newBytes, ulo
 
     if (best != null)
     {
+        if (TryTranslateBySection(entry, oldImageBase, newImageBase, oldSections, newSections, out ulong translatedValue, out string sectionName))
+        {
+            return new OffsetResult(entry, translatedValue, 82, null, null, "section-relative RVA", $"translated within {sectionName}; old value was not directly referenced");
+        }
+
         return new OffsetResult(entry, null, 25, best.OldReference, null, best.Encoding.Description, $"no unique match; closest new match count={best.MatchCount}");
     }
 
+    if (TryTranslateBySection(entry, oldImageBase, newImageBase, oldSections, newSections, out ulong fallbackValue, out string fallbackSectionName))
+    {
+        return new OffsetResult(entry, fallbackValue, 82, null, null, "section-relative RVA", $"translated within {fallbackSectionName}; old value was not directly referenced");
+    }
+
     return new OffsetResult(entry, null, 0, null, null, "", "old value was not referenced in old executable");
+}
+
+static bool TryTranslateBySection(
+    OffsetEntry entry,
+    ulong? oldImageBase,
+    ulong? newImageBase,
+    IReadOnlyList<PeSection> oldSections,
+    IReadOnlyList<PeSection> newSections,
+    out ulong translatedValue,
+    out string sectionName)
+{
+    translatedValue = 0;
+    sectionName = "";
+
+    if (!entry.IsPrimary || oldImageBase is null || newImageBase is null)
+    {
+        return false;
+    }
+
+    if (entry.Value < oldImageBase.Value)
+    {
+        return false;
+    }
+
+    ulong oldRva = entry.Value - oldImageBase.Value;
+    PeSection? oldSection = oldSections.FirstOrDefault(section => section.ContainsRva(oldRva));
+    if (oldSection == null)
+    {
+        return false;
+    }
+
+    PeSection? newSection = newSections.FirstOrDefault(section => section.Name.Equals(oldSection.Name, StringComparison.OrdinalIgnoreCase));
+    if (newSection == null)
+    {
+        return false;
+    }
+
+    ulong sectionOffset = oldRva - oldSection.VirtualAddress;
+    if (sectionOffset >= newSection.VirtualSize)
+    {
+        return false;
+    }
+
+    translatedValue = newImageBase.Value + newSection.VirtualAddress + sectionOffset;
+    sectionName = oldSection.Name;
+    return true;
 }
 
 static ulong NormalizePrimary(ulong rawCandidate, OffsetEncoding encoding, ulong oldValue, ulong? oldImageBase, ulong? newImageBase)
@@ -458,9 +524,56 @@ static class PeInfo
             return null;
         }
     }
+
+    public static IReadOnlyList<PeSection> TryReadSections(byte[] bytes)
+    {
+        var sections = new List<PeSection>();
+        try
+        {
+            if (bytes.Length < 0x100 || bytes[0] != 'M' || bytes[1] != 'Z')
+            {
+                return sections;
+            }
+
+            int peOffset = BitConverter.ToInt32(bytes, 0x3c);
+            if (peOffset <= 0 || peOffset + 0x40 >= bytes.Length)
+            {
+                return sections;
+            }
+
+            ushort sectionCount = BitConverter.ToUInt16(bytes, peOffset + 6);
+            ushort optionalHeaderSize = BitConverter.ToUInt16(bytes, peOffset + 20);
+            int sectionTable = peOffset + 24 + optionalHeaderSize;
+            for (int i = 0; i < sectionCount; i++)
+            {
+                int offset = sectionTable + i * 40;
+                if (offset + 40 > bytes.Length)
+                {
+                    break;
+                }
+
+                string name = Encoding.ASCII.GetString(bytes, offset, 8).TrimEnd('\0');
+                uint virtualSize = BitConverter.ToUInt32(bytes, offset + 8);
+                uint virtualAddress = BitConverter.ToUInt32(bytes, offset + 12);
+                uint rawSize = BitConverter.ToUInt32(bytes, offset + 16);
+                sections.Add(new PeSection(name, virtualAddress, Math.Max(virtualSize, rawSize)));
+            }
+        }
+        catch
+        {
+            return [];
+        }
+
+        return sections;
+    }
 }
 
 sealed record MatchAttempt(OffsetEncoding Encoding, int OldReference, int Radius, int MatchCount);
+
+sealed record PeSection(string Name, ulong VirtualAddress, ulong VirtualSize)
+{
+    public bool ContainsRva(ulong rva) => rva >= VirtualAddress && rva < VirtualAddress + VirtualSize;
+}
 
 sealed record OffsetResult(
     OffsetEntry Entry,
