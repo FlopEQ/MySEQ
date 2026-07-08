@@ -16,6 +16,8 @@ namespace Structures
         private static readonly Regex RemoveNumbersRegex = new Regex("[0-9]", RegexOptions.Compiled);
         private static readonly Regex RemoveNumbersAndHashRegex = new Regex("[0-9#]", RegexOptions.Compiled);
         private static readonly Regex UppercaseOrHashRegex = new Regex("^[A-Z#]", RegexOptions.Compiled);
+        private static readonly Regex ZoneSectionLabelRegex = new Regex(@"^\s*(\((Hunt|Caution|Danger|Alert|Rare)\)\s*)+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex SpawnNumberSuffixRegex = new Regex(@"\s*#?\d{1,3}\s*$", RegexOptions.Compiled);
 
         /// Fixes a mob name by replacing underscores with spaces, unless it starts with an underscore.
         /// <returns>The modified name with underscores replaced by spaces, or the original if it starts with an underscore.</returns>
@@ -36,6 +38,17 @@ namespace Structures
         /// <returns>The modified name with underscores replaced and numbers removed.</returns>
         public static string TrimName(this string name)
             => RemoveNumbersRegex.Replace(RemoveUnderscoreRegex.Replace(name ?? string.Empty, " "), "").Trim();
+
+        /// <summary>
+        /// Cleans a display name for alert filters by removing zone labels and the trailing EQ spawn number.
+        /// </summary>
+        public static string FilterAlertName(this string name)
+        {
+            var cleaned = ZoneSectionLabelRegex.Replace(name ?? string.Empty, "");
+            cleaned = RemoveUnderscoreRegex.Replace(cleaned, " ");
+            cleaned = SpawnNumberSuffixRegex.Replace(cleaned, "");
+            return cleaned.Trim();
+        }
 
         /// Searches a name by replacing underscores with spaces and removing all numeric characters and '#' characters.
         /// <returns>The modified name suitable for search operations.</returns>

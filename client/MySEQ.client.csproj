@@ -54,6 +54,7 @@
     <Compile Include="AboutDialog.designer.cs">
       <DependentUpon>AboutDialog.cs</DependentUpon>
     </Compile>
+    <Compile Include="AlertAudioPlayer.cs" />
     <Compile Include="AlertStatus.cs" />
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="ConnectionStatusSound.cs" />

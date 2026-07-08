@@ -174,7 +174,7 @@
       <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="AlertInsideRangeCircle" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">True</Value>
+      <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="BackColor" Type="System.Drawing.Color" Scope="User">
       <Value Profile="(Default)">Black</Value>
@@ -456,6 +456,9 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="AlertAudioFile" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="AlertVoiceName" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="IPAddress3" Type="System.String" Scope="User">

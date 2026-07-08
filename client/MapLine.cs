@@ -72,6 +72,18 @@ namespace myseq
         public float MinZ { get; private set; } = -1000;
         public float MaxZ { get; private set; } = 1000;
 
+        public void Clear()
+        {
+            LineSegments.Clear();
+            Labels.Clear();
+            MinX = -1000;
+            MaxX = 1000;
+            MinY = -1000;
+            MaxY = 1000;
+            MinZ = -1000;
+            MaxZ = 1000;
+        }
+
         public void LoadMapData(string filePath)
         {
             foreach (var line in File.ReadLines(filePath))

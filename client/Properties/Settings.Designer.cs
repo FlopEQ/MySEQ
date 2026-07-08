@@ -709,7 +709,7 @@ namespace myseq.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool AlertInsideRangeCircle {
             get {
                 return ((bool)(this["AlertInsideRangeCircle"]));
@@ -1844,6 +1844,18 @@ namespace myseq.Properties {
             }
             set {
                 this["AlertAudioFile"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string AlertVoiceName {
+            get {
+                return ((string)(this["AlertVoiceName"]));
+            }
+            set {
+                this["AlertVoiceName"] = value;
             }
         }
         

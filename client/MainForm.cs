@@ -55,9 +55,11 @@ namespace myseq
         private bool bIsRunning;
         private readonly Timer timMapRefresh = new Timer();
         private readonly Timer timLayoutRefresh = new Timer();
+        private readonly Timer alertToastTimer = new Timer();
         private long lastListMaintenanceTick;
         private long lastStatusUpdateTick;
         private ToolStripStatusLabel toolStripDiagnostics;
+        private Label alertToastLabel;
         private ToolStripMenuItem layoutPresetDefault;
         private ToolStripMenuItem layoutPresetMapFocus;
         private ToolStripMenuItem layoutPresetLists;
@@ -92,6 +94,7 @@ namespace myseq
             ModernTheme.ApplyMainForm(this);
             ApplyModernToolbar();
             InstallModernStatusBar();
+            InstallAlertToast();
             InstallLayoutPresetMenu();
 
             mapCon = mapPane.mapCon;
@@ -599,7 +602,64 @@ namespace myseq
                 Settings.Default.WindowsSize = Size;
             }
             Settings.Default.WindowState = WindowState;
+            PositionAlertToast();
             QueueLayoutRefresh();
+        }
+
+        private void InstallAlertToast()
+        {
+            alertToastTimer.Interval = 2400;
+            alertToastTimer.Tick += AlertToastTimer_Tick;
+
+            alertToastLabel = new Label
+            {
+                AutoSize = true,
+                BackColor = Color.FromArgb(225, 31, 35, 43),
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font(Font.FontFamily, 10.0f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Padding = new Padding(18, 10, 18, 10),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = false
+            };
+
+            Controls.Add(alertToastLabel);
+            alertToastLabel.BringToFront();
+        }
+
+        private void AlertToastTimer_Tick(object sender, EventArgs e)
+        {
+            alertToastTimer.Stop();
+            alertToastLabel.Visible = false;
+        }
+
+        public void ShowAlertToast(string message)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action<string>(ShowAlertToast), message);
+                return;
+            }
+
+            alertToastLabel.Text = message;
+            alertToastLabel.Visible = true;
+            PositionAlertToast();
+            alertToastLabel.BringToFront();
+
+            alertToastTimer.Stop();
+            alertToastTimer.Start();
+        }
+
+        private void PositionAlertToast()
+        {
+            if (alertToastLabel == null)
+            {
+                return;
+            }
+
+            alertToastLabel.Location = new Point(
+                Math.Max(0, (ClientSize.Width - alertToastLabel.Width) / 2),
+                Math.Max(0, (ClientSize.Height - alertToastLabel.Height) / 2));
         }
 
         private void QueueLayoutRefresh()
@@ -2315,43 +2375,51 @@ namespace myseq
 
         private void MnuAddHuntFilter_Click(object sender, EventArgs e)
         {
-            if (DialogBox("Add to Zone Hunt Filters", "Add name to Hunt list:", alertAddmobname))
-            {
-                AddToFilter(Filters.Hunt, alertAddmobname);
-            }
+            AddToFilter(Filters.Hunt, alertAddmobname, "Hunt", CurZone);
         }
 
         private void MnuAddCautionFilter_Click(object sender, EventArgs e)
         {
-            if (DialogBox("Add to Zone Caution Filters", "Add name to Caution list:", alertAddmobname))
-            {
-                AddToFilter(Filters.Caution, alertAddmobname);
-            }
+            AddToFilter(Filters.Caution, alertAddmobname, "Caution", CurZone);
         }
 
         private void MnuAddDangerFilter_Click(object sender, EventArgs e)
         {
-            if (DialogBox("Add to Zone Danger Alert Filters", "Add name to Danger list:", alertAddmobname))
-            {
-                AddToFilter(Filters.Danger, alertAddmobname);
-            }
+            AddToFilter(Filters.Danger, alertAddmobname, "Danger", CurZone);
         }
 
         private void MnuAddAlertFilter_Click(object sender, EventArgs e)
         {
-            if (DialogBox("Add to Zone Rare Alert Filters", "Add name to Rare list:", alertAddmobname))
-            {
-                AddToFilter(Filters.Alert, alertAddmobname);
-            }
+            AddToFilter(Filters.Alert, alertAddmobname, "Rare", CurZone);
         }
 
-        private void AddToFilter(List<string> filter, string mob)
+        private void AddToFilter(List<string> filter, string mob, string alertName, string zoneName)
         {
-            filters.AddToAlerts(filter, mob);
+            var cleanMobName = mob.FilterAlertName();
+            if (string.IsNullOrWhiteSpace(cleanMobName))
+            {
+                return;
+            }
+
+            filters.AddToAlerts(filter, cleanMobName);
 
             filters.WriteAlertFile(CurZone);
 
             ReloadAlertFiles();
+            RefreshAlertedSpawnList();
+            ShowAlertAddedToast(cleanMobName, alertName, zoneName);
+        }
+
+        public void ShowAlertAddedToast(string mobName, string alertName, string zoneName)
+        {
+            ShowAlertToast($"Added {mobName} to {alertName} alert for {zoneName}");
+        }
+
+        public void RefreshAlertedSpawnList()
+        {
+            eq.UpdateSpawnFilterDisplays();
+            SpawnList.RefreshList();
+            MapConInvalidate();
         }
 
         #endregion filters

@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Media;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -536,6 +535,7 @@ namespace myseq
                         GetMobRace(si, mob);
 
                         GetMobOwner(si, mob);
+                        UpdateSpawnFilterDisplay(mob);
 
                         //if (mob.Guild != si.Guild)
                         //{
@@ -965,7 +965,7 @@ namespace myseq
         {
             var mobname = si.isMerc ? si.Name.FixMobNameMatch() : si.Name.FixMobName();
 
-            var matchmobname = mobname.FixMobNameMatch();
+            var matchmobname = mobname.FilterAlertName();
             if (matchmobname.Length < 2)
             {
                 matchmobname = mobname;
@@ -985,6 +985,64 @@ namespace myseq
             {
                 AddSpawnListItem(si, mobnameWithInfo);
             }
+        }
+
+        private void UpdateSpawnFilterDisplay(Spawninfo mob)
+        {
+            if (mob == null || mob.listitem == null)
+            {
+                return;
+            }
+
+            mob.isHunt = false;
+            mob.isCaution = false;
+            mob.isDanger = false;
+            mob.isAlert = false;
+
+            var mobname = mob.isMerc ? mob.Name.FixMobNameMatch() : mob.Name.FixMobName();
+            if (mobname.Length == 0)
+            {
+                mobname = mob.Name;
+            }
+
+            var matchmobname = mobname.FilterAlertName();
+            if (matchmobname.Length < 2)
+            {
+                matchmobname = mobname;
+            }
+
+            SetWieldedNames(mob);
+            var mobnameWithInfo = mobname;
+            if (!IsSpecialSpawn(mob))
+            {
+                AssignAlertStatus(mob, matchmobname, ref mobnameWithInfo);
+            }
+
+            mob.listitem.Text = mobnameWithInfo;
+            ApplySpawnListTag(mob, mob.listitem);
+            SetListColors(mob);
+        }
+
+        public void UpdateSpawnFilterDisplays()
+        {
+            foreach (var mob in GetMobSnapshot())
+            {
+                UpdateSpawnFilterDisplay(mob);
+            }
+        }
+
+        private static void ApplySpawnListTag(Spawninfo si, ListViewItem listViewItem)
+        {
+            if (listViewItem == null)
+            {
+                return;
+            }
+
+            listViewItem.Tag = new SpawnListTag
+            {
+                ZoneSectionPriority = GetZoneSectionPriority(si),
+                ZoneSectionLabel = GetZoneSectionLabels(si)
+            };
         }
 
         private void AddSpawnListItem(Spawninfo si, string mobnameWithInfo = null)
@@ -1030,6 +1088,7 @@ namespace myseq
             {
                 ForeColor = GetSpawnListColors(si) // Set the initial color for the list item
             };
+            ApplySpawnListTag(si, listViewItem);
 
             // Create a list of subitems with formatted values and add them in one go
             var subItems = new List<string>
@@ -1243,7 +1302,13 @@ namespace myseq
                     }
                 }
                 if (items.Count > 0)
-                { SpawnList.listView.Items.AddRange(items.ToArray()); }
+                {
+                    SpawnList.listView.Items.AddRange(items.ToArray());
+                    if (SpawnList.listView.ListViewItemSorter != null)
+                    {
+                        SpawnList.listView.Sort();
+                    }
+                }
                 NewSpawns.Clear();
             }
             catch (Exception ex) { LogLib.WriteLine("Error in ProcessSpawnList(): ", ex); }
@@ -1422,13 +1487,6 @@ namespace myseq
             SpawnY = -1.0f;
         }
 
-        private bool Prefix = true;
-        private bool Affix = true;
-        private string HuntPrefix = "";
-        private string AlertPrefix = "";
-        private string DangerPrefix = "";
-        private string CautionPrefix = "";
-
         private bool FullTxtA;
         private bool FullTxtC;
         private bool FullTxtD;
@@ -1438,17 +1496,14 @@ namespace myseq
         {
             if (TalkOnMatch)
             {
-                var talker = new Talker($"{TalkDescr}, {mobname.SearchName()}, is up.");
+                var talker = new Talker($"{TalkDescr}, {mobname.FilterAlertName().SearchName()}, is up.");
                 Task.Run(() => talker.SpeakText());
             }
             else if (PlayOnMatch)
             {
                 if (!string.IsNullOrEmpty(AudioFile) && File.Exists(AudioFile))
                 {
-                    using (SoundPlayer player = new SoundPlayer(AudioFile))
-                    {
-                        player.Play(); // Play the WAV file asynchronously
-                    }
+                    AlertAudioPlayer.Play(AudioFile);
                 }
             }
             else if (BeepOnMatch)
@@ -1471,19 +1526,49 @@ namespace myseq
             else return false;
         }
 
-        private string PrefixAffixLabel(string mname, string prefix)
+        private static int GetZoneSectionPriority(Spawninfo si)
         {
-            if (Prefix)
+            if (si == null)
             {
-                mname = $"{prefix} {mname}";
+                return 0;
             }
 
-            if (Affix)
+            if (si.isHunt)
+                return 1;
+            if (si.isCaution)
+                return 2;
+            if (si.isDanger)
+                return 3;
+            if (si.isAlert)
+                return 4;
+
+            return 0;
+        }
+
+        private static string GetZoneSectionLabels(Spawninfo si)
+        {
+            if (si == null)
             {
-                mname += $" {prefix}";
+                return "";
             }
 
-            return mname;
+            var labels = new List<string>();
+            if (si.isHunt)
+                labels.Add("(Hunt)");
+            if (si.isCaution)
+                labels.Add("(Caution)");
+            if (si.isDanger)
+                labels.Add("(Danger)");
+            if (si.isAlert)
+                labels.Add("(Rare)");
+
+            return string.Join(" ", labels);
+        }
+
+        private static string ApplyZoneSectionLabels(string mobname, Spawninfo si)
+        {
+            var labels = GetZoneSectionLabels(si);
+            return string.IsNullOrEmpty(labels) ? mobname : $"{labels} {mobname}";
         }
 
         private void AssignAlertStatus(Spawninfo si, string matchmobname, ref string mobnameWithInfo)
@@ -1493,28 +1578,24 @@ namespace myseq
                 if (FindMatches(Filters.Hunt, matchmobname, FullTxtH) || FindMatches(Filters.GlobalHunt, matchmobname, FullTxtH))
                 {
                     si.isHunt = true;
-                    mobnameWithInfo = PrefixAffixLabel(mobnameWithInfo, HuntPrefix);
                 }
 
                 // [caution]
                 if (FindMatches(Filters.Caution, matchmobname, FullTxtC) || FindMatches(Filters.GlobalCaution, matchmobname, FullTxtC))
                 {
                     si.isCaution = true;
-                    mobnameWithInfo = PrefixAffixLabel(mobnameWithInfo, CautionPrefix);
                 }
 
                 // [danger]
                 if (((!si.isCorpse || CorpseAlerts) && FindMatches(Filters.Danger, matchmobname, FullTxtD)) || FindMatches(Filters.GlobalDanger, matchmobname, FullTxtD))
                 {
                     si.isDanger = true;
-                    mobnameWithInfo = PrefixAffixLabel(mobnameWithInfo, DangerPrefix);
                 }
 
                 // [rare]
                 if (FindMatches(Filters.Alert, matchmobname, FullTxtA) || FindMatches(Filters.GlobalAlert, matchmobname, FullTxtA))
                 {
                     si.isAlert = true;
-                    mobnameWithInfo = PrefixAffixLabel(mobnameWithInfo, AlertPrefix);
                 }
                 // [Email]
                 //if (filters.EmailAlert.Count > 0 && !si.isCorpse && FindMatches(filters.EmailAlert, matchmobname, true))
@@ -1528,8 +1609,9 @@ namespace myseq
                 if (FindMatches(Filters.WieldedItems, si.PrimaryName, FullTxtH) || FindMatches(Filters.WieldedItems, si.OffhandName, FullTxtH))
                 {
                     si.isHunt = true;
-                    mobnameWithInfo = PrefixAffixLabel(mobnameWithInfo, HuntPrefix);
                 }
+
+                mobnameWithInfo = ApplyZoneSectionLabels(mobnameWithInfo, si);
             }
         }
 
@@ -1564,10 +1646,6 @@ namespace myseq
         {
             // Used to improve packet processing speed
 
-            Prefix = Settings.Default.PrefixStars;
-
-            Affix = Settings.Default.AffixStars;
-
             CorpseAlerts = Settings.Default.CorpseAlerts;
 
             FullTxtH = Settings.Default.MatchFullTextH;
@@ -1578,17 +1656,15 @@ namespace myseq
 
             FullTxtA = Settings.Default.MatchFullTextA;
 
-            HuntPrefix = Settings.Default.HuntPrefix;
-
-            CautionPrefix = Settings.Default.CautionPrefix;
-
-            DangerPrefix = Settings.Default.DangerPrefix;
-
-            AlertPrefix = Settings.Default.AlertPrefix;
         }
 
         private static void PlayAudioMatch(Spawninfo si, string matchmobname)
         {
+            if (si?.isCorpse == true)
+            {
+                return;
+            }
+
             if (Settings.Default.playAlerts)
             {
                 if (si.isHunt && !Settings.Default.NoneOnHunt)

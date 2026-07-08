@@ -25,28 +25,32 @@ namespace myseq
             this.lblCfgDir = new System.Windows.Forms.Label();
             this.lblMapDir = new System.Windows.Forms.Label();
             this.grpDanger = new System.Windows.Forms.GroupBox();
-            this.DangerCycleButton = new System.Windows.Forms.Button();
+            this.lblDangerWavFile = new System.Windows.Forms.Label();
+            this.DangerCycleButton = new System.Windows.Forms.ComboBox();
             this.DangerAudioFileBox = new System.Windows.Forms.TextBox();
             this.txtDangerPrefix = new System.Windows.Forms.TextBox();
             this.lblDangerPrefix = new System.Windows.Forms.Label();
             this.chkDangerMatchFull = new System.Windows.Forms.CheckBox();
             this.grpAlert = new System.Windows.Forms.GroupBox();
+            this.lblAlertWavFile = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
-            this.RareCycleButton = new System.Windows.Forms.Button();
+            this.RareCycleButton = new System.Windows.Forms.ComboBox();
             this.AlertAudioFileBox = new System.Windows.Forms.TextBox();
             this.txtAlertPrefix = new System.Windows.Forms.TextBox();
             this.lblAlertPrefix = new System.Windows.Forms.Label();
             this.chkAlertMatchFull = new System.Windows.Forms.CheckBox();
             this.grpCaution = new System.Windows.Forms.GroupBox();
+            this.lblCautionWavFile = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
-            this.CautionCycleButton = new System.Windows.Forms.Button();
+            this.CautionCycleButton = new System.Windows.Forms.ComboBox();
             this.CautionAudioFileBox = new System.Windows.Forms.TextBox();
             this.txtCautionPrefix = new System.Windows.Forms.TextBox();
             this.lblCautionPrefix = new System.Windows.Forms.Label();
             this.chkCautionMatchFull = new System.Windows.Forms.CheckBox();
             this.grpHunt = new System.Windows.Forms.GroupBox();
+            this.lblHuntWavFile = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
-            this.HuntCycleButton = new System.Windows.Forms.Button();
+            this.HuntCycleButton = new System.Windows.Forms.ComboBox();
             this.HuntAudioFileBox = new System.Windows.Forms.TextBox();
             this.txtHuntPrefix = new System.Windows.Forms.TextBox();
             this.lblHuntPrefix = new System.Windows.Forms.Label();
@@ -214,6 +218,7 @@ namespace myseq
             // 
             // grpDanger
             // 
+            this.grpDanger.Controls.Add(this.lblDangerWavFile);
             this.grpDanger.Controls.Add(this.label3);
             this.grpDanger.Controls.Add(this.DangerCycleButton);
             this.grpDanger.Controls.Add(this.DangerAudioFileBox);
@@ -227,32 +232,48 @@ namespace myseq
             this.grpDanger.TabStop = false;
             this.grpDanger.Text = "Danger";
             // 
+            // lblDangerWavFile
+            // 
+            this.lblDangerWavFile.AutoSize = true;
+            this.lblDangerWavFile.Location = new System.Drawing.Point(10, 58);
+            this.lblDangerWavFile.Name = "lblDangerWavFile";
+            this.lblDangerWavFile.Size = new System.Drawing.Size(58, 13);
+            this.lblDangerWavFile.TabIndex = 32;
+            this.lblDangerWavFile.Text = "Sound file:";
+            // 
             // DangerCycleButton
             // 
+            this.DangerCycleButton.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.DangerCycleButton.FormattingEnabled = true;
+            this.DangerCycleButton.Items.AddRange(new object[] {
+            "None",
+            "Beep",
+            "Speech",
+            "Play sound"});
             this.DangerCycleButton.Location = new System.Drawing.Point(93, 30);
             this.DangerCycleButton.Name = "DangerCycleButton";
-            this.DangerCycleButton.Size = new System.Drawing.Size(146, 23);
+            this.DangerCycleButton.Size = new System.Drawing.Size(146, 21);
             this.DangerCycleButton.TabIndex = 30;
-            this.DangerCycleButton.UseVisualStyleBackColor = true;
-            this.DangerCycleButton.Click += new System.EventHandler(this.DangerCycleButton_Click);
+            this.DangerCycleButton.SelectedIndexChanged += new System.EventHandler(this.DangerCycleButton_Click);
             // 
             // DangerAudioFileBox
             // 
-            this.DangerAudioFileBox.Location = new System.Drawing.Point(11, 53);
+            this.DangerAudioFileBox.Location = new System.Drawing.Point(74, 55);
             this.DangerAudioFileBox.Name = "DangerAudioFileBox";
-            this.DangerAudioFileBox.Size = new System.Drawing.Size(227, 20);
+            this.DangerAudioFileBox.Size = new System.Drawing.Size(164, 20);
             this.DangerAudioFileBox.TabIndex = 19;
             this.DangerAudioFileBox.Click += new System.EventHandler(this.DangerAudioFile_Click);
             // 
             // txtDangerPrefix
             // 
             this.txtDangerPrefix.Location = new System.Drawing.Point(88, 9);
-            this.txtDangerPrefix.MaxLength = 5;
+            this.txtDangerPrefix.MaxLength = 16;
             this.txtDangerPrefix.Name = "txtDangerPrefix";
-            this.txtDangerPrefix.Size = new System.Drawing.Size(32, 20);
+            this.txtDangerPrefix.ReadOnly = true;
+            this.txtDangerPrefix.Size = new System.Drawing.Size(64, 20);
             this.txtDangerPrefix.TabIndex = 13;
-            this.txtDangerPrefix.Text = "[D]";
-            this.txtDangerPrefix.TextChanged += new System.EventHandler(this.DangerPrefix_Changed);
+            this.txtDangerPrefix.TabStop = false;
+            this.txtDangerPrefix.Text = "(Danger)";
             // 
             // lblDangerPrefix
             // 
@@ -260,22 +281,23 @@ namespace myseq
             this.lblDangerPrefix.Name = "lblDangerPrefix";
             this.lblDangerPrefix.Size = new System.Drawing.Size(79, 16);
             this.lblDangerPrefix.TabIndex = 12;
-            this.lblDangerPrefix.Text = "Prefix/Suffix:";
+            this.lblDangerPrefix.Text = "List tag:";
             // 
             // chkDangerMatchFull
             // 
             this.chkDangerMatchFull.Checked = global::myseq.Properties.Settings.Default.MatchFullTextD;
             this.chkDangerMatchFull.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkDangerMatchFull.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::myseq.Properties.Settings.Default, "MatchFullTextD", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.chkDangerMatchFull.Location = new System.Drawing.Point(135, 9);
+            this.chkDangerMatchFull.Location = new System.Drawing.Point(158, 9);
             this.chkDangerMatchFull.Name = "chkDangerMatchFull";
-            this.chkDangerMatchFull.Size = new System.Drawing.Size(104, 24);
+            this.chkDangerMatchFull.Size = new System.Drawing.Size(80, 24);
             this.chkDangerMatchFull.TabIndex = 14;
-            this.chkDangerMatchFull.Text = "Match Full Text";
+            this.chkDangerMatchFull.Text = "Exact Name";
             this.chkDangerMatchFull.CheckedChanged += new System.EventHandler(this.OptDangerBeep_CheckedChanged);
             // 
             // grpAlert
             // 
+            this.grpAlert.Controls.Add(this.lblAlertWavFile);
             this.grpAlert.Controls.Add(this.label7);
             this.grpAlert.Controls.Add(this.RareCycleButton);
             this.grpAlert.Controls.Add(this.AlertAudioFileBox);
@@ -289,41 +311,57 @@ namespace myseq
             this.grpAlert.TabStop = false;
             this.grpAlert.Text = "Rare";
             // 
+            // lblAlertWavFile
+            // 
+            this.lblAlertWavFile.AutoSize = true;
+            this.lblAlertWavFile.Location = new System.Drawing.Point(10, 58);
+            this.lblAlertWavFile.Name = "lblAlertWavFile";
+            this.lblAlertWavFile.Size = new System.Drawing.Size(58, 13);
+            this.lblAlertWavFile.TabIndex = 31;
+            this.lblAlertWavFile.Text = "Sound file:";
+            // 
             // label7
             // 
             this.label7.AutoSize = true;
             this.label7.Location = new System.Drawing.Point(10, 36);
             this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(80, 13);
+            this.label7.Size = new System.Drawing.Size(55, 13);
             this.label7.TabIndex = 30;
-            this.label7.Text = "click to change";
+            this.label7.Text = "Alert type:";
             // 
             // RareCycleButton
             // 
+            this.RareCycleButton.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.RareCycleButton.FormattingEnabled = true;
+            this.RareCycleButton.Items.AddRange(new object[] {
+            "None",
+            "Beep",
+            "Speech",
+            "Play sound"});
             this.RareCycleButton.Location = new System.Drawing.Point(94, 31);
             this.RareCycleButton.Name = "RareCycleButton";
-            this.RareCycleButton.Size = new System.Drawing.Size(145, 23);
+            this.RareCycleButton.Size = new System.Drawing.Size(145, 21);
             this.RareCycleButton.TabIndex = 29;
-            this.RareCycleButton.UseVisualStyleBackColor = true;
-            this.RareCycleButton.Click += new System.EventHandler(this.RareCycleButton_Click);
+            this.RareCycleButton.SelectedIndexChanged += new System.EventHandler(this.RareCycleButton_Click);
             // 
             // AlertAudioFileBox
             // 
-            this.AlertAudioFileBox.Location = new System.Drawing.Point(11, 55);
+            this.AlertAudioFileBox.Location = new System.Drawing.Point(74, 55);
             this.AlertAudioFileBox.Name = "AlertAudioFileBox";
-            this.AlertAudioFileBox.Size = new System.Drawing.Size(228, 20);
+            this.AlertAudioFileBox.Size = new System.Drawing.Size(165, 20);
             this.AlertAudioFileBox.TabIndex = 28;
             this.AlertAudioFileBox.Click += new System.EventHandler(this.AlertAudioFile_Click);
             // 
             // txtAlertPrefix
             // 
             this.txtAlertPrefix.Location = new System.Drawing.Point(88, 11);
-            this.txtAlertPrefix.MaxLength = 5;
+            this.txtAlertPrefix.MaxLength = 16;
             this.txtAlertPrefix.Name = "txtAlertPrefix";
-            this.txtAlertPrefix.Size = new System.Drawing.Size(32, 20);
+            this.txtAlertPrefix.ReadOnly = true;
+            this.txtAlertPrefix.Size = new System.Drawing.Size(64, 20);
             this.txtAlertPrefix.TabIndex = 22;
-            this.txtAlertPrefix.Text = "[R]";
-            this.txtAlertPrefix.TextChanged += new System.EventHandler(this.AlertPrefix_Changed);
+            this.txtAlertPrefix.TabStop = false;
+            this.txtAlertPrefix.Text = "(Rare)";
             // 
             // lblAlertPrefix
             // 
@@ -331,22 +369,23 @@ namespace myseq
             this.lblAlertPrefix.Name = "lblAlertPrefix";
             this.lblAlertPrefix.Size = new System.Drawing.Size(79, 16);
             this.lblAlertPrefix.TabIndex = 21;
-            this.lblAlertPrefix.Text = "Prefix/Suffix:";
+            this.lblAlertPrefix.Text = "List tag:";
             // 
             // chkAlertMatchFull
             // 
             this.chkAlertMatchFull.Checked = global::myseq.Properties.Settings.Default.MatchFullTextA;
             this.chkAlertMatchFull.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkAlertMatchFull.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::myseq.Properties.Settings.Default, "MatchFullTextA", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.chkAlertMatchFull.Location = new System.Drawing.Point(135, 9);
+            this.chkAlertMatchFull.Location = new System.Drawing.Point(158, 9);
             this.chkAlertMatchFull.Name = "chkAlertMatchFull";
-            this.chkAlertMatchFull.Size = new System.Drawing.Size(104, 24);
+            this.chkAlertMatchFull.Size = new System.Drawing.Size(80, 24);
             this.chkAlertMatchFull.TabIndex = 23;
-            this.chkAlertMatchFull.Text = "Match Full Text";
+            this.chkAlertMatchFull.Text = "Exact Name";
             this.chkAlertMatchFull.CheckedChanged += new System.EventHandler(this.ChkAlertMatchFull_CheckedChanged);
             // 
             // grpCaution
             // 
+            this.grpCaution.Controls.Add(this.lblCautionWavFile);
             this.grpCaution.Controls.Add(this.label5);
             this.grpCaution.Controls.Add(this.CautionCycleButton);
             this.grpCaution.Controls.Add(this.CautionAudioFileBox);
@@ -360,41 +399,57 @@ namespace myseq
             this.grpCaution.TabStop = false;
             this.grpCaution.Text = "Caution";
             // 
+            // lblCautionWavFile
+            // 
+            this.lblCautionWavFile.AutoSize = true;
+            this.lblCautionWavFile.Location = new System.Drawing.Point(10, 58);
+            this.lblCautionWavFile.Name = "lblCautionWavFile";
+            this.lblCautionWavFile.Size = new System.Drawing.Size(58, 13);
+            this.lblCautionWavFile.TabIndex = 23;
+            this.lblCautionWavFile.Text = "Sound file:";
+            // 
             // label5
             // 
             this.label5.AutoSize = true;
             this.label5.Location = new System.Drawing.Point(10, 34);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(80, 13);
+            this.label5.Size = new System.Drawing.Size(55, 13);
             this.label5.TabIndex = 22;
-            this.label5.Text = "click to change";
+            this.label5.Text = "Alert type:";
             // 
             // CautionCycleButton
             // 
+            this.CautionCycleButton.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.CautionCycleButton.FormattingEnabled = true;
+            this.CautionCycleButton.Items.AddRange(new object[] {
+            "None",
+            "Beep",
+            "Speech",
+            "Play sound"});
             this.CautionCycleButton.Location = new System.Drawing.Point(94, 29);
             this.CautionCycleButton.Name = "CautionCycleButton";
-            this.CautionCycleButton.Size = new System.Drawing.Size(146, 23);
+            this.CautionCycleButton.Size = new System.Drawing.Size(146, 21);
             this.CautionCycleButton.TabIndex = 21;
-            this.CautionCycleButton.UseVisualStyleBackColor = true;
-            this.CautionCycleButton.Click += new System.EventHandler(this.CautionCycleButton_Click);
+            this.CautionCycleButton.SelectedIndexChanged += new System.EventHandler(this.CautionCycleButton_Click);
             // 
             // CautionAudioFileBox
             // 
-            this.CautionAudioFileBox.Location = new System.Drawing.Point(12, 55);
+            this.CautionAudioFileBox.Location = new System.Drawing.Point(74, 55);
             this.CautionAudioFileBox.Name = "CautionAudioFileBox";
-            this.CautionAudioFileBox.Size = new System.Drawing.Size(228, 20);
+            this.CautionAudioFileBox.Size = new System.Drawing.Size(166, 20);
             this.CautionAudioFileBox.TabIndex = 19;
             this.CautionAudioFileBox.Click += new System.EventHandler(this.CautionAudioFile_Click);
             // 
             // txtCautionPrefix
             // 
             this.txtCautionPrefix.Location = new System.Drawing.Point(88, 9);
-            this.txtCautionPrefix.MaxLength = 5;
+            this.txtCautionPrefix.MaxLength = 16;
             this.txtCautionPrefix.Name = "txtCautionPrefix";
-            this.txtCautionPrefix.Size = new System.Drawing.Size(32, 20);
+            this.txtCautionPrefix.ReadOnly = true;
+            this.txtCautionPrefix.Size = new System.Drawing.Size(64, 20);
             this.txtCautionPrefix.TabIndex = 13;
-            this.txtCautionPrefix.Text = "[C]";
-            this.txtCautionPrefix.TextChanged += new System.EventHandler(this.CautionPrefix_Changed);
+            this.txtCautionPrefix.TabStop = false;
+            this.txtCautionPrefix.Text = "(Caution)";
             // 
             // lblCautionPrefix
             // 
@@ -402,22 +457,23 @@ namespace myseq
             this.lblCautionPrefix.Name = "lblCautionPrefix";
             this.lblCautionPrefix.Size = new System.Drawing.Size(80, 16);
             this.lblCautionPrefix.TabIndex = 12;
-            this.lblCautionPrefix.Text = "Prefix/Suffix:";
+            this.lblCautionPrefix.Text = "List tag:";
             // 
             // chkCautionMatchFull
             // 
             this.chkCautionMatchFull.Checked = global::myseq.Properties.Settings.Default.MatchFullTextC;
             this.chkCautionMatchFull.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkCautionMatchFull.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::myseq.Properties.Settings.Default, "MatchFullTextC", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.chkCautionMatchFull.Location = new System.Drawing.Point(136, 9);
+            this.chkCautionMatchFull.Location = new System.Drawing.Point(158, 9);
             this.chkCautionMatchFull.Name = "chkCautionMatchFull";
-            this.chkCautionMatchFull.Size = new System.Drawing.Size(99, 24);
+            this.chkCautionMatchFull.Size = new System.Drawing.Size(80, 24);
             this.chkCautionMatchFull.TabIndex = 14;
-            this.chkCautionMatchFull.Text = "Match Full Text";
+            this.chkCautionMatchFull.Text = "Exact Name";
             this.chkCautionMatchFull.CheckedChanged += new System.EventHandler(this.ChkCautionMatchFull_CheckedChanged);
             // 
             // grpHunt
             // 
+            this.grpHunt.Controls.Add(this.lblHuntWavFile);
             this.grpHunt.Controls.Add(this.label6);
             this.grpHunt.Controls.Add(this.HuntCycleButton);
             this.grpHunt.Controls.Add(this.HuntAudioFileBox);
@@ -431,41 +487,57 @@ namespace myseq
             this.grpHunt.TabStop = false;
             this.grpHunt.Text = "Hunt";
             // 
+            // lblHuntWavFile
+            // 
+            this.lblHuntWavFile.AutoSize = true;
+            this.lblHuntWavFile.Location = new System.Drawing.Point(10, 58);
+            this.lblHuntWavFile.Name = "lblHuntWavFile";
+            this.lblHuntWavFile.Size = new System.Drawing.Size(58, 13);
+            this.lblHuntWavFile.TabIndex = 24;
+            this.lblHuntWavFile.Text = "Sound file:";
+            // 
             // label6
             // 
             this.label6.AutoSize = true;
             this.label6.Location = new System.Drawing.Point(8, 34);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(80, 13);
+            this.label6.Size = new System.Drawing.Size(55, 13);
             this.label6.TabIndex = 23;
-            this.label6.Text = "click to change";
+            this.label6.Text = "Alert type:";
             // 
             // HuntCycleButton
             // 
+            this.HuntCycleButton.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.HuntCycleButton.FormattingEnabled = true;
+            this.HuntCycleButton.Items.AddRange(new object[] {
+            "None",
+            "Beep",
+            "Speech",
+            "Play sound"});
             this.HuntCycleButton.Location = new System.Drawing.Point(94, 29);
             this.HuntCycleButton.Name = "HuntCycleButton";
-            this.HuntCycleButton.Size = new System.Drawing.Size(146, 23);
+            this.HuntCycleButton.Size = new System.Drawing.Size(146, 21);
             this.HuntCycleButton.TabIndex = 22;
-            this.HuntCycleButton.UseVisualStyleBackColor = true;
-            this.HuntCycleButton.Click += new System.EventHandler(this.HuntCycleButton_Click);
+            this.HuntCycleButton.SelectedIndexChanged += new System.EventHandler(this.HuntCycleButton_Click);
             // 
             // HuntAudioFileBox
             // 
-            this.HuntAudioFileBox.Location = new System.Drawing.Point(12, 55);
+            this.HuntAudioFileBox.Location = new System.Drawing.Point(74, 55);
             this.HuntAudioFileBox.Name = "HuntAudioFileBox";
-            this.HuntAudioFileBox.Size = new System.Drawing.Size(228, 20);
+            this.HuntAudioFileBox.Size = new System.Drawing.Size(166, 20);
             this.HuntAudioFileBox.TabIndex = 10;
             this.HuntAudioFileBox.Click += new System.EventHandler(this.HuntAudioFile_Click);
             // 
             // txtHuntPrefix
             // 
             this.txtHuntPrefix.Location = new System.Drawing.Point(88, 9);
-            this.txtHuntPrefix.MaxLength = 5;
+            this.txtHuntPrefix.MaxLength = 16;
             this.txtHuntPrefix.Name = "txtHuntPrefix";
-            this.txtHuntPrefix.Size = new System.Drawing.Size(32, 20);
+            this.txtHuntPrefix.ReadOnly = true;
+            this.txtHuntPrefix.Size = new System.Drawing.Size(64, 20);
             this.txtHuntPrefix.TabIndex = 4;
-            this.txtHuntPrefix.Text = "[H]";
-            this.txtHuntPrefix.TextChanged += new System.EventHandler(this.HuntPrefix_Changed);
+            this.txtHuntPrefix.TabStop = false;
+            this.txtHuntPrefix.Text = "(Hunt)";
             // 
             // lblHuntPrefix
             // 
@@ -473,18 +545,18 @@ namespace myseq
             this.lblHuntPrefix.Name = "lblHuntPrefix";
             this.lblHuntPrefix.Size = new System.Drawing.Size(80, 16);
             this.lblHuntPrefix.TabIndex = 3;
-            this.lblHuntPrefix.Text = "Prefix/Suffix:";
+            this.lblHuntPrefix.Text = "List tag:";
             // 
             // chkHuntMatchFull
             // 
             this.chkHuntMatchFull.Checked = global::myseq.Properties.Settings.Default.MatchFullTextH;
             this.chkHuntMatchFull.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkHuntMatchFull.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::myseq.Properties.Settings.Default, "MatchFullTextH", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.chkHuntMatchFull.Location = new System.Drawing.Point(136, 9);
+            this.chkHuntMatchFull.Location = new System.Drawing.Point(158, 9);
             this.chkHuntMatchFull.Name = "chkHuntMatchFull";
-            this.chkHuntMatchFull.Size = new System.Drawing.Size(104, 24);
+            this.chkHuntMatchFull.Size = new System.Drawing.Size(80, 24);
             this.chkHuntMatchFull.TabIndex = 5;
-            this.chkHuntMatchFull.Text = "Match Full Text";
+            this.chkHuntMatchFull.Text = "Exact Name";
             this.chkHuntMatchFull.CheckedChanged += new System.EventHandler(this.ChkHuntMatchFull_CheckedChanged);
             // 
             // lblFadedLines
@@ -1203,6 +1275,7 @@ namespace myseq
             this.chkAffixAlerts.Size = new System.Drawing.Size(80, 24);
             this.chkAffixAlerts.TabIndex = 1;
             this.chkAffixAlerts.Text = "Suffix Text";
+            this.chkAffixAlerts.Visible = false;
             this.chkAffixAlerts.CheckedChanged += new System.EventHandler(this.ChkAffixAlerts_CheckedChanged);
             // 
             // chkPrefixAlerts
@@ -1214,6 +1287,7 @@ namespace myseq
             this.chkPrefixAlerts.Size = new System.Drawing.Size(80, 24);
             this.chkPrefixAlerts.TabIndex = 0;
             this.chkPrefixAlerts.Text = "Prefix Text";
+            this.chkPrefixAlerts.Visible = false;
             this.chkPrefixAlerts.CheckedChanged += new System.EventHandler(this.ChkPrefixAlerts_CheckedChanged);
             // 
             // chkCorpsesAlerts
@@ -1506,9 +1580,9 @@ namespace myseq
             this.label3.AutoSize = true;
             this.label3.Location = new System.Drawing.Point(10, 34);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(80, 13);
+            this.label3.Size = new System.Drawing.Size(55, 13);
             this.label3.TabIndex = 31;
-            this.label3.Text = "click to change";
+            this.label3.Text = "Alert type:";
             // 
             // OptionsForm
             // 
@@ -1579,10 +1653,10 @@ namespace myseq
         private Button cmdMapDirBrowse;
         private Button cmdRangeCircleColor;
         private Button cmdSpawnTimers;
-        private Button RareCycleButton;
-        private Button DangerCycleButton;
-        private Button CautionCycleButton;
-        private Button HuntCycleButton;
+        private ComboBox RareCycleButton;
+        private ComboBox DangerCycleButton;
+        private ComboBox CautionCycleButton;
+        private ComboBox HuntCycleButton;
 
         private CheckBox chkAddjust;
         private CheckBox chkAffixAlerts;
@@ -1636,12 +1710,16 @@ namespace myseq
         private Label label2;
         private Label label4;
         private Label lblAlertPrefix;
+        private Label lblAlertWavFile;
         private Label lblCautionPrefix;
+        private Label lblCautionWavFile;
         private Label lblCfgDir;
         private Label lblDangerPrefix;
+        private Label lblDangerWavFile;
         private Label lblFadedLines;
         private Label lblFilterDir;
         private Label lblHuntPrefix;
+        private Label lblHuntWavFile;
         private Label lblIPAddress1;
         private Label lblIPAddress2;
         private Label lblIPAddress3;

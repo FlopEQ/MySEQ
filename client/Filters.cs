@@ -25,7 +25,7 @@ namespace Structures
         { "hunt", 1 },
         { "caution", 2 },
         { "danger", 3 },
-        { "alert", 4 },
+        { "alert", 4 }, { "rare", 4 },
         { "email", 5 }, { "locate", 5 },
         { "primary", 6 }, { "offhand", 6 }
     };
@@ -46,6 +46,7 @@ namespace Structures
 
         public void AddToAlerts(List<string> list, string addItem)
         {
+            addItem = addItem.FilterAlertName();
             if (list == null || string.IsNullOrWhiteSpace(addItem))
             {
                 LogLib.WriteLine($"Invalid input. List or item is null/empty.");
@@ -63,6 +64,26 @@ namespace Structures
             {
                 LogLib.WriteLine($"Error adding alert for '{addItem}': {ex.Message}", ex);
             }
+        }
+
+        public bool RemoveFromAlerts(List<string> list, string removeItem)
+        {
+            removeItem = removeItem.FilterAlertName();
+            if (list == null || string.IsNullOrWhiteSpace(removeItem))
+            {
+                return false;
+            }
+
+            var removed = list.RemoveAll(item => string.Equals(item.FilterAlertName(), removeItem, StringComparison.OrdinalIgnoreCase));
+            return removed > 0;
+        }
+
+        public bool ContainsAlert(List<string> list, string item)
+        {
+            item = item.FilterAlertName();
+            return list != null
+                && !string.IsNullOrWhiteSpace(item)
+                && list.Any(alert => string.Equals(alert.FilterAlertName(), item, StringComparison.OrdinalIgnoreCase));
         }
 
         public void ReadNewAlertFile(string zoneName)
@@ -115,7 +136,18 @@ namespace Structures
         private static string FormatStrings(string inp)
         {
             var match = Regex.Match(inp, @"name:\s*(?<name>.*?)<\/", RegexOptions.IgnoreCase);
-            return match.Success ? match.Groups["name"].Value.Trim() : string.Empty;
+            if (match.Success)
+            {
+                return match.Groups["name"].Value.FilterAlertName();
+            }
+
+            match = Regex.Match(inp, @"<name>\s*(?<name>.*?)\s*</name>", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                return match.Groups["name"].Value.FilterAlertName();
+            }
+
+            return inp.FilterAlertName();
         }
 
         private void DetermineType(int type, string inputstring, string zoneName)
@@ -199,7 +231,7 @@ namespace Structures
             AddSection(lines, "Hunt", Hunt);
             AddSection(lines, "Caution", Caution);
             AddSection(lines, "Danger", Danger);
-            AddSection(lines, "Alert", Alert);
+            AddSection(lines, "Rare", Alert);
             AddSection(lines, "Email", EmailAlert);
             AddSection(lines, "Primary", WieldedItems);
             AddSection(lines, "Offhand", WieldedItems);
@@ -216,7 +248,7 @@ namespace Structures
             AddSection(lines, "Hunt", GlobalHunt);
             AddSection(lines, "Caution", GlobalCaution);
             AddSection(lines, "Danger", GlobalDanger);
-            AddSection(lines, "Alert", GlobalAlert);
+            AddSection(lines, "Rare", GlobalAlert);
             lines.Add("</seqfilters>");
 
             File.WriteAllLines(filterFile, lines);
@@ -245,7 +277,11 @@ namespace Structures
         {
             foreach (var str in alertlist)
             {
-                lines.Add(str);
+                var name = str.FilterAlertName();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    lines.Add($"        <name>{name}</name>");
+                }
             }
         }
 

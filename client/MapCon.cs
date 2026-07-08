@@ -132,6 +132,10 @@ namespace myseq
         private readonly Pen YellowPen = new Pen(new SolidBrush(Color.Yellow));
         private readonly Pen PurplePen = new Pen(new SolidBrush(Color.Purple));
         private readonly Pen PinkPen = new Pen(new SolidBrush(Color.Fuchsia));
+        private readonly Pen HuntAlertPen = new Pen(Color.LimeGreen, 2.2f);
+        private readonly Pen CautionAlertPen = new Pen(Color.Orange, 2.2f);
+        private readonly Pen DangerAlertPen = new Pen(Color.Red, 2.2f);
+        private readonly Pen RareAlertPen = new Pen(Color.Fuchsia, 2.2f);
         private readonly Pen LookupPen = new Pen(Color.Red, 2.4f);
         private readonly Pen SelectionPen = new Pen(ModernTheme.AccentWarm, 2.4f);
         private readonly Pen PCBorder = new Pen(new SolidBrush(Settings.Default.PCBorderColor));
@@ -471,7 +475,7 @@ namespace myseq
             mapIconLegend.Location = new Point(10, 10);
             mapIconLegend.Name = "mapIconLegend";
             mapIconLegend.Padding = new Padding(10, 8, 10, 8);
-            mapIconLegend.Size = new Size(210, 174);
+            mapIconLegend.Size = new Size(360, 174);
             mapIconLegend.TabIndex = 7;
             mapIconLegend.Paint += MapIconLegend_Paint;
             //
@@ -621,6 +625,7 @@ namespace myseq
             using (var textBrush = new SolidBrush(Color.FromArgb(232, 238, 244)))
             {
                 g.DrawString("Map Legend", titleFont, textBrush, 10, 8);
+                g.DrawString("Alert Rings", titleFont, textBrush, 188, 8);
             }
 
             DrawLegendRow(g, 30, "NPC", DrawLegendNpc);
@@ -629,18 +634,22 @@ namespace myseq
             DrawLegendRow(g, 96, "PC corpse", graphics => DrawLegendCorpse(graphics, Color.Yellow));
             DrawLegendRow(g, 118, "Ground spawn", DrawLegendGroundSpawn);
             DrawLegendRow(g, 140, "Selected", DrawLegendSelected);
+            DrawLegendRow(g, 30, "Hunt", graphics => DrawLegendAlertRing(graphics, Color.LimeGreen), 196, 216);
+            DrawLegendRow(g, 52, "Caution", graphics => DrawLegendAlertRing(graphics, Color.Orange), 196, 216);
+            DrawLegendRow(g, 74, "Danger", graphics => DrawLegendAlertRing(graphics, Color.Red), 196, 216);
+            DrawLegendRow(g, 96, "Rare", graphics => DrawLegendAlertRing(graphics, Color.Fuchsia), 196, 216);
         }
 
-        private static void DrawLegendRow(Graphics g, int y, string label, Action<Graphics> drawIcon)
+        private static void DrawLegendRow(Graphics g, int y, string label, Action<Graphics> drawIcon, int iconX = 18, int textX = 38)
         {
             GraphicsState state = g.Save();
-            g.TranslateTransform(18, y + 9);
+            g.TranslateTransform(iconX, y + 9);
             drawIcon(g);
             g.Restore(state);
 
             using (var textBrush = new SolidBrush(Color.FromArgb(232, 238, 244)))
             {
-                g.DrawString(label, ModernTheme.UiFont, textBrush, 38, y);
+                g.DrawString(label, ModernTheme.UiFont, textBrush, textX, y);
             }
         }
 
@@ -725,6 +734,16 @@ namespace myseq
                 g.FillEllipse(fill, -5, -5, 10, 10);
                 g.DrawEllipse(border, -5, -5, 10, 10);
                 g.DrawEllipse(selected, -10, -10, 20, 20);
+            }
+        }
+
+        private static void DrawLegendAlertRing(Graphics g, Color color)
+        {
+            using (var pen = new Pen(color, 2.2f))
+            using (var fill = new SolidBrush(Color.FromArgb(70, color)))
+            {
+                g.FillEllipse(fill, -8, -8, 16, 16);
+                g.DrawEllipse(pen, -8, -8, 16, 16);
             }
         }
 
@@ -1303,7 +1322,7 @@ namespace myseq
             switch (entity)
             {
                 case Spawninfo sp when sp.Name.Length > 0:
-                    f1.alertAddmobname = sp.Name.FilterMobName().Replace("_", " ").TrimEnd(' ');
+                    f1.alertAddmobname = sp.Name.FilterAlertName();
                     SetAlertCoordinates(sp.X, sp.Y, sp.Z);
                     f1.SetContextMenu();
                     return true;
@@ -2856,28 +2875,28 @@ namespace myseq
                 {
                     if (sp.isHunt || sp.proxAlert)
                     {
-                        DrawEllipse(new Pen(new SolidBrush(Color.LimeGreen), 2), x1, y1, SpawnPlusSize, SpawnPlusSize);
+                        DrawEllipse(HuntAlertPen, x1, y1, SpawnPlusSize, SpawnPlusSize);
                     }
 
                     // Draw Ring around Caution Mobs
 
                     if (sp.isCaution)
                     {
-                        DrawEllipse(YellowPen, x1, y1, SpawnPlusSize, SpawnPlusSize);
+                        DrawEllipse(CautionAlertPen, x1, y1, SpawnPlusSize, SpawnPlusSize);
                     }
 
                     // Draw Ring around Danger Mobs
 
                     if (sp.isDanger)
                     {
-                        DrawEllipse(RedPen, x1, y1, SpawnPlusSize, SpawnPlusSize);
+                        DrawEllipse(DangerAlertPen, x1, y1, SpawnPlusSize, SpawnPlusSize);
                     }
 
                     // Draw Ring around Rare Mobs
 
                     if (sp.isAlert)
                     {
-                        DrawEllipse(WhitePen, x1, y1, SpawnPlusSize, SpawnPlusSize);
+                        DrawEllipse(RareAlertPen, x1, y1, SpawnPlusSize, SpawnPlusSize);
                     }
                 }
             }
@@ -3493,29 +3512,26 @@ namespace myseq
             var width = SpawnPlusSize + 2;
             var height = SpawnPlusSize + 2;
 
-            // Draw Yellow Ring around Caution Ground Items
+            // Draw alert rings around ground items using the same colors as NPC alert rings.
             if (!GroundItemDepthFilter || IsWithinDepthFilter(gi.ItemLocation.Z, pZ))
             {
                 if (gi.IsCaution)
                 {
-                    DrawEllipse(YellowPen, x1, y1, width, height);
+                    DrawEllipse(CautionAlertPen, x1, y1, width, height);
                 }
-                // Draw Red Ring around Danger Ground Items
                 if (gi.IsDanger)
                 {
-                    DrawEllipse(RedPen, x1, y1, width, height);
+                    DrawEllipse(DangerAlertPen, x1, y1, width, height);
                 }
 
-                // Draw White Ring around Rare Ground Items
                 if (gi.IsAlert)
                 {
-                    DrawEllipse(WhitePen, x1, y1, width, height);
+                    DrawEllipse(RareAlertPen, x1, y1, width, height);
                 }
 
-                // Draw Cyan Ring around Hunt Ground Items
                 if (gi.IsHunt)
                 {
-                    DrawEllipse(GreenPen, x1, y1, width, height);
+                    DrawEllipse(HuntAlertPen, x1, y1, width, height);
                 }
             }
         }

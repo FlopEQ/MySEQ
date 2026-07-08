@@ -29,6 +29,14 @@ namespace myseq
 
         private ToolStripMenuItem mnuAddGlobalFilter;
 
+        private ToolStripMenuItem mnuAddHuntFilter;
+
+        private ToolStripMenuItem mnuAddCautionFilter;
+
+        private ToolStripMenuItem mnuAddDangerFilter;
+
+        private ToolStripMenuItem mnuAddAlertFilter;
+
         private ToolStripMenuItem mnuAddZoneFilter;
 
         private ToolStripMenuItem mnuAddZoneHuntFilter;
@@ -98,6 +106,7 @@ namespace myseq
                 ColumnsAdd("Z", Settings.Default.c13w, HorizontalAlignment.Left);           //15
                 ColumnsAdd("Distance", Settings.Default.c14w, HorizontalAlignment.Left);    //16
                 //            SpawnList.ColumnsAdd("Guild", Settings.Default.c14w, HorizontalAlignment.Left); //17
+                listView.ListViewItemSorter = new ListViewComparer(0, SortOrder.Ascending);
             }
             else if (listType == 1)     // Add the Columns to the Spawn Timer Window
             {
@@ -200,10 +209,10 @@ namespace myseq
             mnuAddZoneDangerFilter = new ToolStripMenuItem();
             mnuAddZoneRareFilter = new ToolStripMenuItem();
             mnuAddGlobalFilter = new ToolStripMenuItem();
-            ToolStripMenuItem mnuAddHuntFilter = new ToolStripMenuItem();
-            ToolStripMenuItem mnuAddCautionFilter = new ToolStripMenuItem();
-            ToolStripMenuItem mnuAddDangerFilter = new ToolStripMenuItem();
-            ToolStripMenuItem mnuAddAlertFilter = new ToolStripMenuItem();
+            mnuAddHuntFilter = new ToolStripMenuItem();
+            mnuAddCautionFilter = new ToolStripMenuItem();
+            mnuAddDangerFilter = new ToolStripMenuItem();
+            mnuAddAlertFilter = new ToolStripMenuItem();
             mnuEditGlobalFilters = new ToolStripMenuItem();
             mnuEditZoneFilters = new ToolStripMenuItem();
             mnuReloadZoneFilters = new ToolStripMenuItem();
@@ -287,7 +296,15 @@ namespace myseq
             mnuSearchAllakhazam});
             mnuContext.Name = "mnuContext";
             mnuContext.Size = new Size(297, 326);
+            mnuContext.BackColor = ModernTheme.Shell;
+            mnuContext.ForeColor = Color.White;
+            mnuContext.Renderer = new ToolStripProfessionalRenderer(new ListContextMenuColorTable());
+            mnuContext.ShowImageMargin = true;
             mnuContext.Opened += new EventHandler(MnuContext_Opened);
+            foreach (ToolStripItem item in mnuContext.Items)
+            {
+                item.ForeColor = Color.White;
+            }
             //
             // mnuAddZoneFilter
             //
@@ -493,11 +510,12 @@ namespace myseq
             if ((sel.Count > 0) && (Mobname.Length > 0))
 
             {
-                mnuAddGlobalFilter.Text = $"Add '{Mobname}' &Global Alert Filter";
+                mnuAddGlobalFilter.Text = $"Global alerts for '{Mobname}'";
 
                 mnuAddZoneFilter.Text = $"'{Mobname}'";
 
                 toolStriConcolor.Text = $"Base Concolor on '{Mobname}' ({moblevel})";
+                UpdateAlertMenuItems();
                 mnuAddZoneFilter.Visible = true;
 
                 mnuSep3.Visible = true;
@@ -526,17 +544,17 @@ namespace myseq
                 if (ListType == 0)
                 {
                     addMapLabelToolStripMenuItem.Enabled = true;
-                    f1.alertX = float.Parse(listView.Items[sel[0]].SubItems[13].Text);
-                    f1.alertY = float.Parse(listView.Items[sel[0]].SubItems[14].Text);
-                    f1.alertZ = float.Parse(listView.Items[sel[0]].SubItems[15].Text);
+                    f1.alertX = ParseListFloat(listView.Items[sel[0]].SubItems[13].Text);
+                    f1.alertY = ParseListFloat(listView.Items[sel[0]].SubItems[14].Text);
+                    f1.alertZ = ParseListFloat(listView.Items[sel[0]].SubItems[15].Text);
                 }
                 else if (ListType == 1)
                 {
                     // add what is in the menu showing
                     addMapLabelToolStripMenuItem.Enabled = true;
-                    f1.alertX = float.Parse(listView.Items[sel[0]].SubItems[4].Text);
-                    f1.alertY = float.Parse(listView.Items[sel[0]].SubItems[5].Text);
-                    f1.alertZ = float.Parse(listView.Items[sel[0]].SubItems[6].Text);
+                    f1.alertX = ParseListFloat(listView.Items[sel[0]].SubItems[4].Text);
+                    f1.alertY = ParseListFloat(listView.Items[sel[0]].SubItems[5].Text);
+                    f1.alertZ = ParseListFloat(listView.Items[sel[0]].SubItems[6].Text);
                     // search for a better name to use for this spawn point
                     Spawntimer st = eq.FindListViewTimer(listView.Items[sel[0]]);
 
@@ -761,9 +779,7 @@ namespace myseq
 
         private void ListType0(ListView.SelectedIndexCollection sel)
         {
-            Mobname = listView.Items[sel[0]].SubItems[0].Text.FilterMobName();
-            Mobname = Mobname.Replace("_", " ");
-            Mobname = Mobname.Trim();
+            Mobname = listView.Items[sel[0]].SubItems[0].Text.FilterAlertName();
             //smoblevel = "";
             MobLevel(sel);
         }
@@ -784,9 +800,7 @@ namespace myseq
         private void ListType1(ListView.SelectedIndexCollection sel)
         {
             moblevel = 1;
-            MobLevel(sel);
-            Mobname = listView.Items[sel[0]].SubItems[0].Text.FixMobNameMatch();
-            Mobname = Mobname.Trim();
+            Mobname = listView.Items[sel[0]].SubItems[0].Text.FilterAlertName();
         }
 
         private void StickyTimer(Spawntimer st)
@@ -800,8 +814,8 @@ namespace myseq
                     Mobname = bname;
                     mnuAddZoneFilter.Text = $"'{Mobname}'";
                     f1.alertX = st.Location.X;
-                    f1.alertY = st.Location.X;
-                    f1.alertZ = st.Location.X;
+                    f1.alertY = st.Location.Y;
+                    f1.alertZ = st.Location.Z;
                     break;
                 }
             }
@@ -862,6 +876,11 @@ namespace myseq
                 if (listView.IsHandleCreated)
                 {
                     SafeNativeMethods.SendMessage(listView.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+                }
+
+                if (ListType == 0 && listView.ListViewItemSorter != null)
+                {
+                    listView.Sort();
                 }
 
                 listView.PerformLayout();
@@ -1120,12 +1139,12 @@ namespace myseq
 
                     if (ListType == 1)
                     {
-                        eq?.SetSelectedTimer(float.Parse(listView.Items[itemIndex].SubItems[4].Text), float.Parse(listView.Items[itemIndex].SubItems[5].Text));
+                        eq?.SetSelectedTimer(ParseListFloat(listView.Items[itemIndex].SubItems[4].Text), ParseListFloat(listView.Items[itemIndex].SubItems[5].Text));
                     }
                     else if (ListType == 2)
                     {
-                        float x = float.Parse(listView.Items[itemIndex].SubItems[3].Text);
-                        float y = float.Parse(listView.Items[itemIndex].SubItems[4].Text);
+                        float x = ParseListFloat(listView.Items[itemIndex].SubItems[3].Text);
+                        float y = ParseListFloat(listView.Items[itemIndex].SubItems[4].Text);
                         eq?.SetSelectedGroundItem(x, y);
                         HighlightSelectedGroundItem();
                         f1?.mapCon?.UpdateSelectionCardGroundItem(x, y);
@@ -1147,83 +1166,95 @@ namespace myseq
             listView.Columns.Add(ColumnName, ColumnWidth, CoulumnAlign);
         }
 
-        private void AddFilter(List<string> fltr, string zone)
+        private void UpdateAlertMenuItems()
         {
-            filters.AddToAlerts(fltr, Mobname);
+            UpdateAlertMenuItem(mnuAddZoneHuntFilter, Filters.Hunt, "Hunt");
+            UpdateAlertMenuItem(mnuAddZoneCautionFilter, Filters.Caution, "Caution");
+            UpdateAlertMenuItem(mnuAddZoneDangerFilter, Filters.Danger, "Danger");
+            UpdateAlertMenuItem(mnuAddZoneRareFilter, Filters.Alert, "Rare");
+
+            UpdateAlertMenuItem(mnuAddHuntFilter, Filters.GlobalHunt, "Hunt");
+            UpdateAlertMenuItem(mnuAddCautionFilter, Filters.GlobalCaution, "Caution");
+            UpdateAlertMenuItem(mnuAddDangerFilter, Filters.GlobalDanger, "Danger");
+            UpdateAlertMenuItem(mnuAddAlertFilter, Filters.GlobalAlert, "Rare");
+        }
+
+        private void UpdateAlertMenuItem(ToolStripMenuItem item, List<string> list, string alertName)
+        {
+            bool contains = filters.ContainsAlert(list, Mobname);
+            item.Text = contains ? $"Remove from {alertName}" : $"Add to {alertName}";
+            item.ForeColor = contains ? Color.FromArgb(255, 142, 129) : Color.FromArgb(184, 239, 202);
+        }
+
+        private void ToggleFilter(List<string> fltr, string zone, string alertName)
+        {
+            var cleanMobName = Mobname.FilterAlertName();
+            if (string.IsNullOrWhiteSpace(cleanMobName))
+            {
+                return;
+            }
+
+            bool removed = filters.ContainsAlert(fltr, cleanMobName);
+            if (removed)
+            {
+                filters.RemoveFromAlerts(fltr, cleanMobName);
+            }
+            else
+            {
+                filters.AddToAlerts(fltr, cleanMobName);
+            }
 
             filters.WriteAlertFile(zone);
 
             f1.ReloadAlertFiles();
+            f1.RefreshAlertedSpawnList();
+            f1.ShowAlertToast($"{(removed ? "Removed" : "Added")} {cleanMobName} {(removed ? "from" : "to")} {alertName} alert for {zone}");
         }
 
         private void MnuAddHuntFilter_Click(object sender, EventArgs e)
         {
-            if (f1.DialogBox("Add to Global Alert Filters", "Add name to Hunt list:", Mobname))
-            {
-                AddFilter(Filters.GlobalHunt, "global");
-            }
+            ToggleFilter(Filters.GlobalHunt, "global", "Hunt");
         }
 
         private void MnuAddCautionFilter_Click(object sender, EventArgs e)
         {
-            if (f1.DialogBox("Add to Global Alert Filters", "Add name to Caution list:", Mobname))
-            {
-                AddFilter(Filters.GlobalCaution, "global");
-            }
+            ToggleFilter(Filters.GlobalCaution, "global", "Caution");
         }
 
         private void MnuAddDangerFilter_Click(object sender, EventArgs e)
 
         {
-            if (f1.DialogBox("Add to Global Alert Filters", "Add name to Danger list:", Mobname))
-            {
-                AddFilter(Filters.GlobalDanger, "global");
-            }
+            ToggleFilter(Filters.GlobalDanger, "global", "Danger");
         }
 
         private void MnuAddAlertFilter_Click(object sender, EventArgs e)
 
         {
-            if (f1.DialogBox("Add to Global Alert Filters", "Add name to Rare list:", Mobname))
-            {
-                AddFilter(Filters.GlobalAlert, "global");
-            }
+            ToggleFilter(Filters.GlobalAlert, "global", "Rare");
         }
 
         private void MnuAddZoneHuntFilter_Click(object sender, EventArgs e)
 
         {
-            if (f1.DialogBox("Add to Zone Hunt Alert Filters", "Add name to Hunt list:", Mobname))
-            {
-                AddFilter(Filters.Hunt, f1.CurZone);
-            }
+            ToggleFilter(Filters.Hunt, f1.CurZone, "Hunt");
         }
 
         private void MnuAddZoneCautionFilter_Click(object sender, EventArgs e)
 
         {
-            if (f1.DialogBox("Add to Zone Caution Alert Filters", "Add name to Caution list:", Mobname))
-            {
-                AddFilter(Filters.Caution, f1.CurZone);
-            }
+            ToggleFilter(Filters.Caution, f1.CurZone, "Caution");
         }
 
         private void MnuAddZoneDangerFilter_Click(object sender, EventArgs e)
 
         {
-            if (f1.DialogBox("Add to Zone Danger Alert Filters", "Add name to Danger list:", Mobname))
-            {
-                AddFilter(Filters.Danger, f1.CurZone);
-            }
+            ToggleFilter(Filters.Danger, f1.CurZone, "Danger");
         }
 
         private void MnuAddZoneAlertFilter_Click(object sender, EventArgs e)
 
         {
-            if (f1.DialogBox("Add to Zone Rare Alert Filters", "Add name to Rare list:", Mobname))
-            {
-                AddFilter(Filters.Alert, f1.CurZone);
-            }
+            ToggleFilter(Filters.Alert, f1.CurZone, "Rare");
         }
 
         private void MnuEditGlobalFilters_Click(object sender, EventArgs e) => FileOps.EditAlertFile("global");
@@ -1277,6 +1308,19 @@ namespace myseq
         {
             Settings.Default.LevelOverride = moblevel;
             eq.GConBaseName = Mobname;
+        }
+
+        private sealed class ListContextMenuColorTable : ProfessionalColorTable
+        {
+            public override Color ToolStripDropDownBackground => ModernTheme.Shell;
+            public override Color ImageMarginGradientBegin => ModernTheme.ShellAlt;
+            public override Color ImageMarginGradientMiddle => ModernTheme.ShellAlt;
+            public override Color ImageMarginGradientEnd => ModernTheme.ShellAlt;
+            public override Color MenuBorder => Color.FromArgb(78, 88, 101);
+            public override Color MenuItemBorder => ModernTheme.Accent;
+            public override Color MenuItemSelected => Color.FromArgb(54, 66, 78);
+            public override Color SeparatorDark => Color.FromArgb(74, 84, 96);
+            public override Color SeparatorLight => Color.FromArgb(74, 84, 96);
         }
     }
 }

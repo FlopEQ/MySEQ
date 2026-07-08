@@ -1,10 +1,10 @@
 ﻿using myseq.Properties;
 using Structures;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
-using System.Media;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -13,20 +13,91 @@ namespace myseq
     public partial class OptionsForm : Form
     {
         private readonly FormMethods formMethod = new FormMethods();
-        private string selectedCautionWav;
-        private readonly string[] buttonTexts = { "None", "Beep", "Speech", "Play wav" };
-        private int currentIndex = 0;
+        private readonly string[] buttonTexts = { "None", "Beep", "Speech", "Play sound" };
+        private const string DefaultVoiceLabel = "Windows default";
+        private ComboBox huntVoiceBox;
+        private ComboBox cautionVoiceBox;
+        private ComboBox dangerVoiceBox;
+        private ComboBox alertVoiceBox;
 
         public OptionsForm()
         {
             InitializeComponent();
+            InitializeAlertVoicePickers();
             SetCautionTextFromSettings();
             SetHuntTextFromSettings();
             SetAlertTextFromSettings();
             SetDangerTextFromSettings();
             SetOptions(this);
+            UpdateAlertAudioFileVisibility();
             ModernTheme.ApplyMainForm(this);
             ApplyModernOptionsLayout();
+        }
+
+        private void InitializeAlertVoicePickers()
+        {
+            var voices = Talker.GetInstalledVoices();
+
+            huntVoiceBox = CreateVoicePicker(HuntAudioFileBox, voices);
+            cautionVoiceBox = CreateVoicePicker(CautionAudioFileBox, voices);
+            dangerVoiceBox = CreateVoicePicker(DangerAudioFileBox, voices);
+            alertVoiceBox = CreateVoicePicker(AlertAudioFileBox, voices);
+
+            grpHunt.Controls.Add(huntVoiceBox);
+            grpCaution.Controls.Add(cautionVoiceBox);
+            grpDanger.Controls.Add(dangerVoiceBox);
+            grpAlert.Controls.Add(alertVoiceBox);
+        }
+
+        private ComboBox CreateVoicePicker(Control template, List<string> voices)
+        {
+            var voiceBox = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = template.Location,
+                Size = template.Size,
+                Visible = false
+            };
+
+            voiceBox.Items.Add(DefaultVoiceLabel);
+            foreach (string voice in voices)
+            {
+                voiceBox.Items.Add(voice);
+            }
+
+            int selectedIndex = !string.IsNullOrWhiteSpace(Settings.Default.AlertVoiceName)
+                ? voiceBox.Items.IndexOf(Settings.Default.AlertVoiceName)
+                : 0;
+            voiceBox.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
+            voiceBox.SelectedIndexChanged += AlertVoiceBox_SelectedIndexChanged;
+
+            return voiceBox;
+        }
+
+        private void AlertVoiceBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (sender is ComboBox voiceBox)
+            {
+                Settings.Default.AlertVoiceName = voiceBox.SelectedIndex > 0 ? voiceBox.Text : string.Empty;
+                SyncAlertVoicePickers(voiceBox.Text);
+                Settings.Default.Save();
+            }
+        }
+
+        private void SyncAlertVoicePickers(string selectedVoice)
+        {
+            SetVoicePickerText(huntVoiceBox, selectedVoice);
+            SetVoicePickerText(cautionVoiceBox, selectedVoice);
+            SetVoicePickerText(dangerVoiceBox, selectedVoice);
+            SetVoicePickerText(alertVoiceBox, selectedVoice);
+        }
+
+        private static void SetVoicePickerText(ComboBox voiceBox, string selectedVoice)
+        {
+            if (voiceBox != null && voiceBox.Text != selectedVoice && voiceBox.Items.Contains(selectedVoice))
+            {
+                voiceBox.Text = selectedVoice;
+            }
         }
 
         private void ApplyModernOptionsLayout()
@@ -152,31 +223,31 @@ namespace myseq
 
             options.chkSaveOnExit.Checked = Settings.Default.SaveOnExit;
 
-            options.chkPrefixAlerts.Checked = Settings.Default.PrefixStars;
+            options.chkPrefixAlerts.Visible = false;
 
-            options.chkAffixAlerts.Checked = Settings.Default.AffixStars;       // affix
+            options.chkAffixAlerts.Visible = false;
 
             options.chkCorpsesAlerts.Checked = Settings.Default.CorpseAlerts;
 
-            options.txtHuntPrefix.Text = Settings.Default.HuntPrefix;
+            options.txtHuntPrefix.Text = "(Hunt)";
 
             options.chkHuntMatchFull.Checked = Settings.Default.MatchFullTextH;  //hunt
 
             options.HuntAudioFileBox.Text = Settings.Default.HuntAudioFile;
 
-            options.txtCautionPrefix.Text = Settings.Default.CautionPrefix;
+            options.txtCautionPrefix.Text = "(Caution)";
 
             options.chkCautionMatchFull.Checked = Settings.Default.MatchFullTextC;  //Caution
 
             options.CautionAudioFileBox.Text = Settings.Default.CautionAudioFile;
 
-            options.txtDangerPrefix.Text = Settings.Default.DangerPrefix;
+            options.txtDangerPrefix.Text = "(Danger)";
 
             options.chkDangerMatchFull.Checked = Settings.Default.MatchFullTextD;  //danger
 
             options.DangerAudioFileBox.Text = Settings.Default.DangerAudioFile;
 
-            options.txtAlertPrefix.Text = Settings.Default.AlertPrefix;
+            options.txtAlertPrefix.Text = "(Rare)";
 
             options.chkAlertMatchFull.Checked = Settings.Default.MatchFullTextA;  //Rare
 
@@ -535,9 +606,7 @@ namespace myseq
 
         private void CautionCycleButton_Click(object sender, EventArgs e)
         {
-            CautionCycleButton.Text = $"Will alert as: {buttonTexts[currentIndex]}";
-            UpdateCautionSettings(buttonTexts[currentIndex]); // Update settings when button text changes
-            currentIndex = (currentIndex + 1) % buttonTexts.Length; // Cycle through the array
+            UpdateCautionSettings(CautionCycleButton.Text);
         }
 
         private void UpdateCautionSettings(string currentText)
@@ -564,15 +633,18 @@ namespace myseq
                     break;
 
                 case "Play wav":
+                case "Play sound":
                     Settings.Default.PlayOnCaution = true;
                     break;
             }
 
+            UpdateAlertAudioFileVisibility();
             Settings.Default.Save(); // Save the settings if necessary
         }
 
         private void SetCautionTextFromSettings()
         {
+            int currentIndex = 0;
             if (Settings.Default.NoneOnCaution)
                 currentIndex = 0;
             else if (Settings.Default.BeepOnCaution)
@@ -582,7 +654,7 @@ namespace myseq
             else if (Settings.Default.PlayOnCaution)
                 currentIndex = 3;
 
-            CautionCycleButton.Text = buttonTexts[currentIndex]; // Set the initial button text
+            CautionCycleButton.SelectedIndex = currentIndex;
         }
 
         private void CautionTest_Click(object sender, EventArgs e)
@@ -600,10 +672,7 @@ namespace myseq
             {
                 if (!string.IsNullOrEmpty(Settings.Default.CautionAudioFile) && File.Exists(Settings.Default.CautionAudioFile))
                 {
-                    using (SoundPlayer player = new SoundPlayer(selectedCautionWav))
-                    {
-                        player.Play(); // Play the WAV file asynchronously
-                    }
+                    AlertAudioPlayer.Play(Settings.Default.CautionAudioFile);
                 }
             }
         }
@@ -612,15 +681,13 @@ namespace myseq
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "WAV files (*.wav)|*.wav";
-                openFileDialog.Title = "Select a WAV file";
+                openFileDialog.Filter = AlertAudioPlayer.FileDialogFilter;
+                openFileDialog.Title = "Select an audio file";
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    // Store the selected file path
-                    selectedCautionWav = openFileDialog.FileName;
-                    // Display the file path in a label or textbox
-                    CautionAudioFileBox.Text = selectedCautionWav;
+                    Settings.Default.CautionAudioFile = openFileDialog.FileName;
+                    CautionAudioFileBox.Text = Settings.Default.CautionAudioFile;
                 }
             }
         }
@@ -631,9 +698,7 @@ namespace myseq
 
         private void HuntCycleButton_Click(object sender, EventArgs e)
         {
-            HuntCycleButton.Text = $"Will alert as: {buttonTexts[currentIndex]}";
-            UpdateHuntSettings(buttonTexts[currentIndex]); // Update settings when button text changes
-            currentIndex = (currentIndex + 1) % buttonTexts.Length; // Cycle through the array
+            UpdateHuntSettings(HuntCycleButton.Text);
         }
 
         private void UpdateHuntSettings(string currentText)
@@ -660,15 +725,18 @@ namespace myseq
                     break;
 
                 case "Play wav":
+                case "Play sound":
                     Settings.Default.PlayOnHunt = true;
                     break;
             }
 
+            UpdateAlertAudioFileVisibility();
             Settings.Default.Save(); // Save the settings if necessary
         }
 
         private void SetHuntTextFromSettings()
         {
+            int currentIndex = 0;
             if (Settings.Default.NoneOnHunt)
                 currentIndex = 0;
             else if (Settings.Default.BeepOnHunt)
@@ -677,15 +745,15 @@ namespace myseq
                 currentIndex = 2;
             else if (Settings.Default.PlayOnHunt)
                 currentIndex = 3;
-            HuntCycleButton.Text = buttonTexts[currentIndex]; // Set the initial button text
+            HuntCycleButton.SelectedIndex = currentIndex;
         }
 
         private void HuntAudioFile_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "WAV files (*.wav)|*.wav";
-                openFileDialog.Title = "Select a WAV file";
+                openFileDialog.Filter = AlertAudioPlayer.FileDialogFilter;
+                openFileDialog.Title = "Select an audio file";
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
@@ -703,9 +771,7 @@ namespace myseq
 
         private void RareCycleButton_Click(object sender, EventArgs e)
         {
-            RareCycleButton.Text = $"Will alert as: {buttonTexts[currentIndex]}";
-            UpdateRareSettings(buttonTexts[currentIndex]); // Update settings when button text changes
-            currentIndex = (currentIndex + 1) % buttonTexts.Length; // Cycle through the array
+            UpdateRareSettings(RareCycleButton.Text);
         }
 
         private void UpdateRareSettings(string currentText)
@@ -732,15 +798,18 @@ namespace myseq
                     break;
 
                 case "Play wav":
+                case "Play sound":
                     Settings.Default.PlayOnAlert = true;
                     break;
             }
 
+            UpdateAlertAudioFileVisibility();
             Settings.Default.Save(); // Save the settings if necessary
         }
 
         private void SetAlertTextFromSettings()
         {
+            int currentIndex = 0;
             if (Settings.Default.NoneOnAlert)
                 currentIndex = 0;
             else if (Settings.Default.BeepOnAlert)
@@ -749,15 +818,15 @@ namespace myseq
                 currentIndex = 2;
             else if (Settings.Default.PlayOnAlert)
                 currentIndex = 3;
-            RareCycleButton.Text = buttonTexts[currentIndex]; // Set the initial button text
+            RareCycleButton.SelectedIndex = currentIndex;
         }
 
         private void AlertAudioFile_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "WAV files (*.wav)|*.wav";
-                openFileDialog.Title = "Select a WAV file";
+                openFileDialog.Filter = AlertAudioPlayer.FileDialogFilter;
+                openFileDialog.Title = "Select an audio file";
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
@@ -775,9 +844,7 @@ namespace myseq
 
         private void DangerCycleButton_Click(object sender, EventArgs e)
         {
-            DangerCycleButton.Text = $"Will alert as: {buttonTexts[currentIndex]}";
-            UpdateDangerSettings(buttonTexts[currentIndex]); // Update settings when button text changes
-            currentIndex = (currentIndex + 1) % buttonTexts.Length; // Cycle through the array
+            UpdateDangerSettings(DangerCycleButton.Text);
         }
 
         private void UpdateDangerSettings(string currentText)
@@ -804,15 +871,18 @@ namespace myseq
                     break;
 
                 case "Play wav":
+                case "Play sound":
                     Settings.Default.PlayOnDanger = true;
                     break;
             }
 
+            UpdateAlertAudioFileVisibility();
             Settings.Default.Save(); // Save the settings if necessary
         }
 
         private void SetDangerTextFromSettings()
         {
+            int currentIndex = 0;
             if (Settings.Default.NoneOnDanger)
                 currentIndex = 0;
             else if (Settings.Default.BeepOnDanger)
@@ -821,15 +891,15 @@ namespace myseq
                 currentIndex = 2;
             else if (Settings.Default.PlayOnDanger)
                 currentIndex = 3;
-            DangerCycleButton.Text = buttonTexts[currentIndex]; // Set the initial button text
+            DangerCycleButton.SelectedIndex = currentIndex;
         }
 
         private void DangerAudioFile_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "WAV files (*.wav)|*.wav";
-                openFileDialog.Title = "Select a WAV file";
+                openFileDialog.Filter = AlertAudioPlayer.FileDialogFilter;
+                openFileDialog.Title = "Select an audio file";
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
@@ -839,6 +909,24 @@ namespace myseq
                     DangerAudioFileBox.Text = Settings.Default.DangerAudioFile;
                 }
             }
+        }
+
+        private void UpdateAlertAudioFileVisibility()
+        {
+            SetAlertExtraControl(lblHuntWavFile, HuntAudioFileBox, huntVoiceBox, Settings.Default.PlayOnHunt, Settings.Default.TalkOnHunt);
+            SetAlertExtraControl(lblCautionWavFile, CautionAudioFileBox, cautionVoiceBox, Settings.Default.PlayOnCaution, Settings.Default.TalkOnCaution);
+            SetAlertExtraControl(lblDangerWavFile, DangerAudioFileBox, dangerVoiceBox, Settings.Default.PlayOnDanger, Settings.Default.TalkOnDanger);
+            SetAlertExtraControl(lblAlertWavFile, AlertAudioFileBox, alertVoiceBox, Settings.Default.PlayOnAlert, Settings.Default.TalkOnAlert);
+        }
+
+        private static void SetAlertExtraControl(Label label, Control audioBox, Control voiceBox, bool showAudio, bool showVoice)
+        {
+            label.Visible = showAudio || showVoice;
+            label.Text = showVoice ? "Voice:" : "Sound file:";
+            audioBox.Visible = showAudio;
+            audioBox.Enabled = showAudio;
+            voiceBox.Visible = showVoice;
+            voiceBox.Enabled = showVoice;
         }
 
         #endregion DangerAlerts

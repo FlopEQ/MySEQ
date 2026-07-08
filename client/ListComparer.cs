@@ -4,6 +4,12 @@ using System.Windows.Forms;
 
 namespace myseq
 {
+    public sealed class SpawnListTag
+    {
+        public int ZoneSectionPriority { get; set; }
+        public string ZoneSectionLabel { get; set; } = "";
+    }
+
     // Compares two ListView items based on a selected column.
     // Compares two ListView items based on a selected column.
     public class ListViewComparer : IComparer
@@ -28,6 +34,10 @@ namespace myseq
             var string_x = item_x?.SubItems.Count > ColumnNumber ? item_x.SubItems[ColumnNumber].Text : "";
             var string_y = item_y?.SubItems.Count > ColumnNumber ? item_y.SubItems[ColumnNumber].Text : "";
 
+            int priorityResult = CompareZoneSectionPriority(item_x, item_y);
+            if (priorityResult != 0)
+                return priorityResult;
+
             // Compare them.
             int result = CompareItems(string_x, string_y);
 
@@ -47,6 +57,27 @@ namespace myseq
 
             // Compare as strings
             return string.Compare(string_x, string_y);
+        }
+
+        private static int CompareZoneSectionPriority(ListViewItem item_x, ListViewItem item_y)
+        {
+            int priorityX = GetZoneSectionPriority(item_x);
+            int priorityY = GetZoneSectionPriority(item_y);
+
+            if (priorityX == priorityY)
+                return 0;
+            if (priorityX == 0)
+                return 1;
+            if (priorityY == 0)
+                return -1;
+
+            return priorityX.CompareTo(priorityY);
+        }
+
+        private static int GetZoneSectionPriority(ListViewItem item)
+        {
+            var tag = item?.Tag as SpawnListTag;
+            return tag?.ZoneSectionPriority ?? 0;
         }
     }
 }

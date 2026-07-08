@@ -98,8 +98,7 @@ namespace Structures
                 WriteSection(sw, "Hunt");
                 WriteSection(sw, "Caution");
                 WriteSection(sw, "Danger");
-                WriteSection(sw, "Locate");   // Not used in MySEQ
-                WriteSection(sw, "Alert");    // Rares
+                WriteSection(sw, "Rare");
                 WriteSection(sw, "Filtered");
 
                 // Write additional sections if the file is not global

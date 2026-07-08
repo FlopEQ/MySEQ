@@ -114,6 +114,7 @@ namespace myseq
             eq.MobsTimers.ResetTimers();
             OnExitMap();
             trails.Clear();
+            mapData.Clear();
             mapData.Update();
         }
 
@@ -122,6 +123,7 @@ namespace myseq
             LogLib.WriteLine($"Loading Dummy Map", LogLevel.Debug);
             OnExitMap();
             trails.Clear();
+            mapData.Clear();
             mapData.Update();
             OnEnterMap();
         }
