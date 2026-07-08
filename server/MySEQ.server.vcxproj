@@ -99,31 +99,31 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug - Console|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>server</TargetName>
+    <TargetName>MySEQ-Server</TargetName>
     <OutDir>..\..\Program Files %28x86%29\MySEQ\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug - GUI|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>server</TargetName>
+    <TargetName>MySEQ-Server</TargetName>
     <OutDir>..\..\Program Files %28x86%29\MySEQ\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug - Console|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>serverx64</TargetName>
+    <TargetName>MySEQ-Server</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug - GUI|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>serverx64</TargetName>
+    <TargetName>MySEQ-Server</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\Program Files %28x86%29\MySEQ\</OutDir>
-    <TargetName>server</TargetName>
+    <TargetName>MySEQ-Server</TargetName>
     <IntDir>$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>..\..\Program Files %28x86%29\MySEQ\</OutDir>
-    <TargetName>server-x64</TargetName>
+    <TargetName>MySEQ-Server</TargetName>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug - Console|Win32'">
@@ -150,7 +150,7 @@
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
-      <OutputFile>$(OutDir)server.exe</OutputFile>
+      <OutputFile>$(OutDir)MySEQ-Server.exe</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug - GUI|Win32'">
@@ -177,7 +177,7 @@
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
-      <OutputFile>$(OutDir)server.exe</OutputFile>
+      <OutputFile>$(OutDir)MySEQ-Server.exe</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug - Console|x64'">
@@ -204,7 +204,7 @@
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
-      <OutputFile>$(OutDir)serverx64.exe</OutputFile>
+      <OutputFile>$(OutDir)MySEQ-Server.exe</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug - GUI|x64'">
@@ -231,7 +231,7 @@
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
-      <OutputFile>$(OutDir)serverx64.exe</OutputFile>
+      <OutputFile>$(OutDir)MySEQ-Server.exe</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -254,7 +254,7 @@
       <AdditionalDependencies>wsock32.lib;iphlpapi.lib;ws2_32.lib;psapi.lib;kernel32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <OutputFile>$(OutDir)server.exe</OutputFile>
+      <OutputFile>$(OutDir)MySEQ-Server.exe</OutputFile>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -280,7 +280,7 @@
       <AdditionalDependencies>wsock32.lib;iphlpapi.lib;ws2_32.lib;psapi.lib;kernel32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <OutputFile>$(OutDir)server-x64.exe</OutputFile>
+      <OutputFile>$(OutDir)MySEQ-Server.exe</OutputFile>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>

@@ -597,10 +597,16 @@ namespace myseq
 
         private void MainForm_Resize(object sender, EventArgs e)
         {
+            if (WindowState == FormWindowState.Minimized)
+            {
+                return;
+            }
+
             if (WindowState == FormWindowState.Normal)
             {
                 Settings.Default.WindowsSize = Size;
             }
+
             Settings.Default.WindowState = WindowState;
             PositionAlertToast();
             QueueLayoutRefresh();

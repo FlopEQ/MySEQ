@@ -83,6 +83,7 @@ STARTUPINFO siStartupInfo;
 PROCESS_INFORMATION piProcessInfo;
 
 NOTIFYICONDATA g_notifyIconData;
+bool g_trayIconVisible = false;
 
 BOOL kill_console = FALSE;
 
@@ -101,6 +102,9 @@ INT_PTR CALLBACK	OffsetDialog(HWND, UINT, WPARAM, LPARAM);
 void LaunchOffsetDiffFinder(HWND hDlg);
 void GetPatchdate();
 BOOL WINAPI CtrlHandler(DWORD dwCtrlType);
+void AddTrayIcon();
+void DeleteTrayIcon();
+void RestoreTrayIconAfterTaskbarRestart(HWND hWnd);
 
 void DoDebugLoop(void* dummy);
 bool IsServerValueControl(int controlId);
@@ -471,7 +475,7 @@ int APIENTRY _tWinMain(_In_   HINSTANCE hInstance,
 	}
 
 	if (h_MySEQServer && !IsWindowVisible(h_MySEQServer)) {
-		Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+		DeleteTrayIcon();
 	}
 	return (int)msg.wParam;
 }
@@ -585,16 +589,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		h_MySEQServer = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_SERVERBOX), hWnd, ServerDialog);
 	}
 
-	// Set window style of dialog so it shows a button in task bar, with main window hidden.
-	// When the dialog is minimized, i minimizes to the system tray.
-	// Code taken from #Winprog FAQ (winprog.org/faq)
-	DWORD dwStyle, dwNewStyle;
-	SetLastError(0);
-	dwStyle = GetWindowLong(h_MySEQServer, GWL_EXSTYLE);
-	dwNewStyle = (dwStyle & (~WS_EX_TOOLWINDOW)) | WS_EX_APPWINDOW;
-	SetWindowLong(h_MySEQServer, GWL_EXSTYLE, dwNewStyle);
-	SetWindowPos(h_MySEQServer, NULL, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE);
-
 	// for debug mode, we open a console for use
 	if (debug_mode || console_mode) {
 		AllocConsole();
@@ -621,7 +615,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	// Tie the NOTIFYICONDATA struct to our
 	// global HWND (that will have been initialized
 	// before calling this function)
-	g_notifyIconData.hWnd = h_MySEQServer;
+	g_notifyIconData.hWnd = h_Main;
 	// Now GIVE the NOTIFYICON.. the thing that
 	// will sit in the system tray, an ID.
 	g_notifyIconData.uID = ID_TRAY_APP_ICON;
@@ -700,7 +694,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	HDC hdc;
 
 	if (message == WM_TASKBARCREATED && h_MySEQServer != NULL && !IsWindowVisible(h_MySEQServer)) {
-		Minimize();
+		RestoreTrayIconAfterTaskbarRestart(h_MySEQServer);
 		return 0;
 	}
 
@@ -792,6 +786,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		AppendMenu(g_menu, MF_STRING, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, TEXT("Exit MySEQ"));
 
 		break;
+	case WM_TRAYICON:
+		HandleTrayIcon(h_MySEQServer, wParam, lParam);
+		break;
 	case WM_COMMAND:
 		wmId = LOWORD(wParam);
 		wmEvent = HIWORD(wParam);
@@ -817,7 +814,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_CLOSE:
 		DestroyWindow(hWnd);
-		Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+		DeleteTrayIcon();
 		//	Minimize() ;
 		return 0;
 		break;
@@ -825,7 +822,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_DESTROY:
 		running = false;
 		FreeConsole();
-		Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+		DeleteTrayIcon();
 		PostQuitMessage(0);
 		break;
 	default:
@@ -837,6 +834,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 // Message handler for server dialog.
 INT_PTR CALLBACK ServerDialog(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	UNREFERENCED_PARAMETER(lParam);
+
+	if (message == WM_TASKBARCREATED) {
+		RestoreTrayIconAfterTaskbarRestart(hDlg);
+		return (INT_PTR)TRUE;
+	}
 
 	switch (message) {
 	case WM_INITDIALOG:
@@ -973,10 +975,12 @@ void HandleTrayIcon(HWND hDlg, WPARAM wParam, LPARAM lParam) {
 		break;
 	}
 
-	if (lParam == WM_LBUTTONDBLCLK) {
+	const UINT trayEvent = LOWORD(lParam);
+
+	if (trayEvent == WM_LBUTTONUP || trayEvent == WM_LBUTTONDBLCLK || trayEvent == NIN_SELECT || trayEvent == NIN_KEYSELECT) {
 		RestoreWindow(hDlg);
 	}
-	else if (lParam == WM_RBUTTONDOWN) {
+	else if (trayEvent == WM_RBUTTONUP || trayEvent == WM_CONTEXTMENU) {
 		ShowPopupMenu(hDlg);
 	}
 }
@@ -1003,7 +1007,7 @@ void ShowPopupMenu(HWND hDlg) {
 
 	switch (clicked) {
 	case ID_TRAY_EXIT_CONTEXT_MENU_ITEM:
-		Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+		DeleteTrayIcon();
 		running = false;
 		EndDialog(hDlg, (INT_PTR)clicked);
 		FreeConsole();
@@ -1324,20 +1328,46 @@ void Minimize()
 	else
 		CheckMenuItem(g_menu, ID_TRAY_START_MINIMIZED_MENU_ITEM, MF_UNCHECKED);
 
-	// add the icon to the system tray
-	Shell_NotifyIcon(NIM_ADD, &g_notifyIconData);
-
-	// hide the console
+	AddTrayIcon();
 	ShowWindow(h_MySEQServer, SW_HIDE);
 }
 
 void Restore()
 {
-	// Remove the icon from the system tray
-	Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+	DeleteTrayIcon();
 
 	// ..and show the window
 	ShowWindow(h_MySEQServer, SW_SHOW);
+}
+
+void AddTrayIcon()
+{
+	// Explorer drops all tray icons when it restarts. Delete first so this also
+	// works as a clean refresh path without creating duplicate icon state.
+	Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+	g_trayIconVisible = Shell_NotifyIcon(NIM_ADD, &g_notifyIconData) == TRUE;
+	if (g_trayIconVisible)
+	{
+		g_notifyIconData.uVersion = NOTIFYICON_VERSION_4;
+		Shell_NotifyIcon(NIM_SETVERSION, &g_notifyIconData);
+	}
+}
+
+void DeleteTrayIcon()
+{
+	if (g_trayIconVisible)
+	{
+		Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+		g_trayIconVisible = false;
+	}
+}
+
+void RestoreTrayIconAfterTaskbarRestart(HWND hWnd)
+{
+	if (hWnd != NULL && !IsWindowVisible(hWnd))
+	{
+		AddTrayIcon();
+	}
 }
 
 void ToggleStartMinimized()
